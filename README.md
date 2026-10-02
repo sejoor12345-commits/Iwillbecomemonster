@@ -29,7 +29,7 @@ v0.1은 **②부터** 풀어요: 오늘 Colab으로 바로 되고, 지금까지 
 | 버전 | 어디서 | 내용 | 상태 |
 |---|---|---|---|
 | **v0.1** | Colab | 메모 붙여넣기 → 표 → 볼륨·e1RM → 같은 분할끼리 성장 → 사이클 세트 → 종목별 범위·증량으로 다음 무게 | ✅ |
-| **v0.2** | Colab | ✅ 슈퍼세트 `A/B` 자동 나누기, ✅ `바 제외` 글자 지우기, ✅ 종목별 e1RM 그래프 / RPE 선택 입력 (RIR·워밍업 구분·부위별 세트 그래프는 안 하기로 함) | 🔨 지금 (`v0.2` 브랜치) |
+| **v0.2** | Colab | ✅ 슈퍼세트 `A/B` 자동 나누기, ✅ `바 제외` 글자 지우기, ✅ 종목별 e1RM 그래프, ✅ RPE 선택 입력 (`@8`, RPE 10이면 증량 대신 굳히기) — RIR·워밍업 구분·부위별 세트 그래프는 안 하기로 함 | 🔨 지금 (`v0.2` 브랜치) |
 | v0.3 | Colab | 체중·러닝 줄도 같은 메모에서 읽기 (`체중 72.4`, `러닝 5km 28:30`) | |
 | v0.4 | 모바일 | 헬스장에서 폰으로 입력하는 웹앱 + 휴식 타이머(휴식 시간이 자동으로 기록됨). 저장 위치(폰 안 / 구글 시트 / Supabase)와 배포 방법은 이때 결정 | |
 | v0.5 | 연동 | 식단: FatSecret은 공개 API가 있음, Yazio는 공개 API 없음(미확인). 현실적인 길은 식단 앱 → 애플 건강 → "건강 데이터 내보내기" 파일 → Colab (앱별 애플 건강 연동 여부 미확인). 애플 건강(HealthKit)에 직접 연결하려면 웹이 아니라 iOS 앱이 필요 | |
@@ -77,7 +77,7 @@ v0.1은 **②부터** 풀어요: 오늘 Colab으로 바로 되고, 지금까지 
 - 증량 규칙(참고: 내 규칙은 '모든 세트가 범위 최대 달성 → 1번에 증량'): American College of Sports Medicine. Progression models in resistance training for healthy adults. *Med Sci Sports Exerc.* 2009;41(3):687–708. (목표 횟수를 1~2회 넘기는 날이 2회 연속이면 2~10% 증량)
 - 반복 범위: Schoenfeld BJ, et al. Strength and hypertrophy adaptations between low- vs. high-load resistance training. *J Strength Cond Res.* 2017;31(12):3508–3523.
 - e1RM: Epley 공식 `무게 × (1 + 횟수/30)` (Epley B, 1985). 횟수가 많을수록 부정확.
-- (v0.2 예정) RPE/RIR: Zourdos MC, et al. *J Strength Cond Res.* 2016;30(1):267–275.
+- RPE (v0.2): Zourdos MC, et al. *J Strength Cond Res.* 2016;30(1):267–275. / Helms ER, et al. Application of the repetitions in reserve-based rating of perceived exertion scale for resistance training. *Strength Cond J.* 2016;38(4):42–49. (내 규칙: 범위 최대 달성 + RPE 9 이하 또는 안 씀 → 증량, RPE 10 → 같은 무게로 굳히기)
 - (v0.4 예정) 휴식 시간: Schoenfeld BJ, et al. *J Strength Cond Res.* 2016;30(7):1805–1812.
 
 ## 6. 한계
