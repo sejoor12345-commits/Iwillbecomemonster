@@ -3,7 +3,7 @@
 아이폰 메모에 적던 운동 기록을 **Colab에 붙여넣으면**, 표로 바꾸고 성장을 계산해서 **다음 운동의 무게·세트**를 제안해 주는 노트북입니다.
 「코딩실력 늘리기」의 세 번째 빈 화면 테스트 (첫 Python/Colab 프로젝트)예요.
 
-- 파일: `gym_log.ipynb` (노트북 하나로 끝)
+- 파일: `gym_log.ipynb` (헬스 기록), `weight_log.ipynb` (체중 · 칼로리, v0.3)
 - 열기: Colab → `파일 → 노트북 열기 → GitHub` → "비공개 저장소 포함" 체크 → 이 저장소와 브랜치 선택 → `gym_log.ipynb`
 
 ---
@@ -30,9 +30,9 @@ v0.1은 **②부터** 풀어요: 오늘 Colab으로 바로 되고, 지금까지 
 |---|---|---|---|
 | **v0.1** | Colab | 메모 붙여넣기 → 표 → 볼륨·e1RM → 같은 분할끼리 성장 → 사이클 세트 → 종목별 범위·증량으로 다음 무게 | ✅ |
 | **v0.2** | Colab | ✅ 슈퍼세트 `A/B` 자동 나누기, ✅ `바 제외` 글자 지우기, ✅ 종목별 e1RM 그래프, ✅ RPE 선택 입력 (`@8`, RPE 10이면 증량 대신 굳히기) — RIR·워밍업 구분·부위별 세트 그래프는 안 하기로 함 | 🔨 지금 (`v0.2` 브랜치) |
-| v0.3 | Colab | 체중·러닝 줄도 같은 메모에서 읽기 (`체중 72.4`, `러닝 5km 28:30`) | |
+| **v0.3** | Colab | `weight_log.ipynb`: 아침 공복 체중 + 먹은 칼로리 메모 → 7일 평균 · 주별 요약 · 그래프 → **내 기록으로 유지 칼로리 역산** → 목표 속도(주당 kg)에 맞춘 추천 섭취 칼로리. 러닝은 STRAVA로 충분해서 뺌 | 🔨 지금 (`v0.3` 브랜치) |
 | v0.4 | 모바일 | 헬스장에서 폰으로 입력하는 웹앱 + 휴식 타이머(휴식 시간이 자동으로 기록됨). 저장 위치(폰 안 / 구글 시트 / Supabase)와 배포 방법은 이때 결정 | |
-| v0.5 | 연동 | 식단: FatSecret은 공개 API가 있음, Yazio는 공개 API 없음(미확인). 현실적인 길은 식단 앱 → 애플 건강 → "건강 데이터 내보내기" 파일 → Colab (앱별 애플 건강 연동 여부 미확인). 애플 건강(HealthKit)에 직접 연결하려면 웹이 아니라 iOS 앱이 필요 | |
+| v0.5 | 연동 | 식단: 음식 성분을 직접 검색해 적는 건 불편 → 음식 DB가 있는 서비스와 연동. FatSecret은 공개 API가 있음, Yazio는 공개 API 없음(미확인). 러닝: STRAVA API로 기록 가져오기(사용 조건 미확인). 체성분. 체중 변화와 운동 퍼포먼스 같이 보기. 현실적인 길은 식단 앱 → 애플 건강 → "건강 데이터 내보내기" 파일 → Colab (앱별 애플 건강 연동 여부 미확인). 애플 건강(HealthKit)에 직접 연결하려면 웹이 아니라 iOS 앱이 필요 | |
 
 ---
 
@@ -78,6 +78,8 @@ v0.1은 **②부터** 풀어요: 오늘 Colab으로 바로 되고, 지금까지 
 - 반복 범위: Schoenfeld BJ, et al. Strength and hypertrophy adaptations between low- vs. high-load resistance training. *J Strength Cond Res.* 2017;31(12):3508–3523.
 - e1RM: Epley 공식 `무게 × (1 + 횟수/30)` (Epley B, 1985). 횟수가 많을수록 부정확.
 - RPE (v0.2): Zourdos MC, et al. *J Strength Cond Res.* 2016;30(1):267–275. / Helms ER, et al. Application of the repetitions in reserve-based rating of perceived exertion scale for resistance training. *Strength Cond J.* 2016;38(4):42–49. (내 규칙: 범위 최대 달성 + RPE 9 이하 또는 안 씀 → 증량, RPE 10 → 같은 무게로 굳히기)
+- 체중 1kg ≈ 7700kcal: Wishnofsky M. *Am J Clin Nutr.* 1958;6(5):542–546. (대략값. 장기적으로는 과대평가된다는 비판: Hall KD. *Int J Obes.* 2008;32(3):573–576.)
+- 감량 속도 주당 체중의 0.5~1%: Helms ER, Aragon AA, Fitschen PJ. Evidence-based recommendations for natural bodybuilding contest preparation. *J Int Soc Sports Nutr.* 2014;11:20.
 - (v0.4 예정) 휴식 시간: Schoenfeld BJ, et al. *J Strength Cond Res.* 2016;30(7):1805–1812.
 
 ## 6. 한계
