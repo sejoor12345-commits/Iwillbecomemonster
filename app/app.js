@@ -15,6 +15,7 @@
 //     custom: { "새 종목": { part, range, step } }      ← 앱에서 직접 추가한 종목
 //   }
 
+const APP_VERSION = "v0.4-a.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -346,6 +347,7 @@ function homeView() {
         <button data-action="backup">백업</button>
         <label class="button">복원<input type="file" accept="application/json" data-action="restore" hidden></label>
       </div>
+      <p class="muted small version">${APP_VERSION}</p>
     </main>`;
 }
 
@@ -574,5 +576,11 @@ document.addEventListener("change", event => {
 // ---------- 7. 시작 ----------
 
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist();   // "이 기록 함부로 지우지 마" 요청
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");        // 오프라인 동작
+if ("serviceWorker" in navigator) {
+  const hadOldVersion = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js");                                       // 오프라인 동작
+  navigator.serviceWorker.addEventListener("controllerchange", () => {             // 새 버전이 설치되면
+    if (hadOldVersion) location.reload();                                          //   바로 새로 고쳐서 보여 주기
+  });
+}
 render();
