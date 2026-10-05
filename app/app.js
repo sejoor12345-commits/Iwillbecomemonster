@@ -17,6 +17,8 @@
 
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
+const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
+const STEP_CHOICES = [1, 2, 2.5, 4, 5];                                     // 새 종목의 증량 단위 후보
 
 
 // ---------- 1. 저장 · 불러오기 ----------
@@ -45,6 +47,7 @@ const ui = {
   query: "",             // 종목 검색어
   summaryId: null,       // 요약 화면에 보여 줄 운동
   focusSearch: false,    // 다시 그린 뒤 검색칸에 커서를 둘지
+  form: null,            // 새 종목 / 종목 수정 칸 { name, part, bodyweight, step, editing }
 };
 
 
@@ -147,16 +150,37 @@ function startWorkout(split) {
 function addExercise(name) {
   name = name.trim();
   if (!name) return;
-  if (/[\/:@*,]/.test(name)) { alert("종목 이름에는 / : @ * , 를 쓸 수 없어요 (메모 형식과 겹쳐서)"); return; }
-  const w = current();
-  if (!EXERCISES[name] && !data.custom[name]) {
-    const bodyweight = confirm(`"${name}"은(는) 새 종목이에요.\n맨몸 운동인가요? (확인 = 맨몸, 취소 = 무게 운동)`);
-    data.custom[name] = { part: "미분류", range: [8, 12], step: bodyweight ? 0 : 5 };
+  if (!EXERCISES[name] && !data.custom[name]) {           // 처음 보는 종목 → 부위 · 종류를 정하는 칸 열기
+    return openForm(name, false);
   }
+  const w = current();
   w.exercises.push({ name, rpe: null, sets: [], draft: initialDraft(w.split, name) });
   Object.assign(ui, { active: w.exercises.length - 1, adding: false, query: "", menu: null, edit: null });
   save();
   render();
+}
+
+// 새 종목 칸 열기 (editing = true면 이미 있는 내 종목의 부위 · 종류 고치기)
+function openForm(name, editing) {
+  if (/[\/:@*,]/.test(name)) { alert("종목 이름에는 / : @ * , 를 쓸 수 없어요 (메모 형식과 겹쳐서)"); return; }
+  const old = data.custom[name];
+  ui.form = {
+    name, editing,
+    part: old && old.part !== "미분류" ? old.part : current().split,   // 기본값 = 오늘 분할
+    bodyweight: old ? old.step === 0 : false,
+    step: old && old.step ? old.step : 5,
+  };
+  render();
+}
+
+function saveForm() {
+  const f = ui.form;
+  const old = data.custom[f.name];
+  data.custom[f.name] = { part: f.part, range: old ? old.range : [8, 12], step: f.bodyweight ? 0 : f.step };
+  ui.form = null;
+  save();
+  if (f.editing) render();
+  else addExercise(f.name);                    // 새 종목이면 저장하고 바로 오늘 운동에 추가
 }
 
 function changeDraft(i, field, delta) {
@@ -376,22 +400,61 @@ function exerciseCard(e, i, split) {
     </section>`;
 }
 
+// 부위 순서: 오늘 분할 → 나머지 기본 부위 → 내가 만든 부위 → 미분류
+function partOrder(split) {
+  const parts = new Set([split, ...PART_ORDER]);
+  Object.values(data.custom).forEach(c => parts.add(c.part));
+  parts.delete("미분류");
+  return [...parts, "미분류"];
+}
+
+function formPanel() {
+  const f = ui.form;
+  const parts = PART_ORDER.includes(f.part) ? PART_ORDER : [...PART_ORDER, f.part];
+  return `
+    <section class="card add">
+      <div class="card-head static"><b>${escapeHtml(f.name)}</b><button class="link small" data-action="close-form">취소</button></div>
+      <p class="muted small">${f.editing ? "부위 · 종류 고치기" : "새 종목이에요. 부위와 종류를 골라 주세요."}</p>
+      <p class="label">부위</p>
+      <div class="choices">${parts.map(p => `<button class="${f.part === p ? "selected" : ""}" data-action="form-part" data-v="${p}">${p}</button>`).join("")}</div>
+      <p class="label">종류</p>
+      <div class="choices">
+        <button class="${!f.bodyweight ? "selected" : ""}" data-action="form-bw" data-v="0">무게 운동</button>
+        <button class="${f.bodyweight ? "selected" : ""}" data-action="form-bw" data-v="1">맨몸 운동</button>
+      </div>
+      ${f.bodyweight ? "" : `<p class="label">증량 단위 (± 버튼 한 번)</p>
+      <div class="choices">${STEP_CHOICES.map(v => `<button class="${f.step === v ? "selected" : ""}" data-action="form-step" data-v="${v}">${v}kg</button>`).join("")}</div>`}
+      <button class="primary wide" data-action="save-form">${f.editing ? "저장" : "저장하고 추가"}</button>
+    </section>`;
+}
+
 function addPanel(w) {
+  if (ui.form) return formPanel();
   const q = ui.query.trim().toLowerCase();
   const done = new Set(w.exercises.map(e => e.name));
   const lastSame = finishedWorkouts().filter(x => x.split === w.split).pop();
   const suggested = lastSame ? lastSame.exercises.map(e => e.name).filter(n => !done.has(n)) : [];
   const all = [...Object.keys(EXERCISES), ...Object.keys(data.custom)]
     .filter(n => !done.has(n) && n.toLowerCase().includes(q));
-  const item = n => `<button class="pick" data-action="pick" data-name="${escapeHtml(n)}">${escapeHtml(n)} <span class="muted small">${settingOf(n).part}</span></button>`;
+  const item = n => {
+    const mine = data.custom[n];
+    const fix = mine ? `<button class="link small" data-action="edit-form" data-name="${escapeHtml(n)}">${mine.part === "미분류" ? "부위 정하기" : "수정"}</button>` : "";
+    return `<div class="pick-row"><button class="pick" data-action="pick" data-name="${escapeHtml(n)}">${escapeHtml(n)}</button>${fix}</div>`;
+  };
+  // 부위별로 묶고, 묶음 안에서는 알파벳 순서
+  const groups = partOrder(w.split).map(part => {
+    const names = all.filter(n => settingOf(n).part === part)
+      .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+    return names.length ? `<p class="group">${part}</p>${names.map(item).join("")}` : "";
+  }).join("");
   const exact = all.some(n => n.toLowerCase() === q);
   return `
     <section class="card add">
       <div class="card-head static"><b>종목 추가</b><button class="link small" data-action="close-add">닫기</button></div>
       <input type="search" placeholder="종목 검색 (예: bench)" value="${escapeHtml(ui.query)}" data-action="search" autocomplete="off">
-      ${!q && suggested.length ? `<p class="muted small">지난번 ${w.split}에서 한 종목</p>${suggested.map(item).join("")}<p class="muted small">전체</p>` : ""}
-      <div class="pick-list">${all.map(item).join("")}</div>
       ${q && !exact ? `<button class="pick new" data-action="pick" data-name="${escapeHtml(ui.query.trim())}">+ "${escapeHtml(ui.query.trim())}" 새 종목으로 추가</button>` : ""}
+      ${!q && suggested.length ? `<p class="group">지난번 ${w.split}에서 한 종목</p>${suggested.map(item).join("")}` : ""}
+      <div class="pick-list">${groups}</div>
     </section>`;
 }
 
@@ -458,8 +521,14 @@ document.addEventListener("click", event => {
   const i = Number(el.dataset.i), j = Number(el.dataset.j);
   switch (el.dataset.action) {
     case "start": return startWorkout(el.dataset.split);
-    case "open-add": Object.assign(ui, { adding: true, query: "", focusSearch: true }); return render();
-    case "close-add": ui.adding = false; return render();
+    case "open-add": Object.assign(ui, { adding: true, query: "", focusSearch: true, form: null }); return render();
+    case "close-add": Object.assign(ui, { adding: false, form: null }); return render();
+    case "close-form": ui.form = null; return render();
+    case "edit-form": return openForm(el.dataset.name, true);
+    case "form-part": ui.form.part = el.dataset.v; return render();
+    case "form-bw": ui.form.bodyweight = el.dataset.v === "1"; return render();
+    case "form-step": ui.form.step = Number(el.dataset.v); return render();
+    case "save-form": return saveForm();
     case "pick": return addExercise(el.dataset.name);
     case "open": Object.assign(ui, { active: i, menu: null, edit: null }); return render();
     case "minus": return changeDraft(i, el.dataset.field, -1);

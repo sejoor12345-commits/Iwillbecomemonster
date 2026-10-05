@@ -93,6 +93,12 @@ input[type="search"] {
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0 8px;
 }
 .pick { display: flex; justify-content: space-between; width: 100%; margin: 4px 0; text-align: left; }
+.pick-row { display: flex; align-items: center; gap: 10px; }
+.pick-row .pick { flex: 1; }
+.group { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 4px; }
+.label { font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
+button.wide { width: 100%; margin-top: 16px; }
 .pick.new { color: var(--accent); }
 .add-button { width: 100%; margin-top: 10px; border-style: dashed; }
 
