@@ -114,7 +114,7 @@ v0.1은 **②부터** 풀어요: 오늘 Colab으로 바로 되고, 지금까지 
 
 **데이터 흐름:** 버튼 → `data`(폰 저장소) → `toMemo()` → `가슴 10/05 / ◦ Bench press: 85*8,8,7 @8` → 노트북 ① MEMO 맨 아래에 붙여넣기
 
-**배포 (Vercel):** vercel.com에 GitHub로 로그인 → Add New → Project → 이 저장소 Import → Root Directory는 그대로(`./`) → Deploy. 저장소 맨 위의 `vercel.json`이 "`app` 폴더를 보여 줘"라고 알려 줘요. 브랜치마다 미리보기 주소가 생겨요 (main에는 아직 앱이 없어서, `v0.4` 브랜치 주소를 쓰세요).
+**배포 (Vercel):** vercel.com에 GitHub로 로그인 → Add New → Project → 이 저장소 Import → Root Directory는 그대로(`./`) → Deploy. 저장소 맨 위의 `vercel.json`이 "`app` 폴더를 보여 줘"라고 알려 줘요. Vercel **Settings → Environments → Production → Branch Tracking**을 지금 버전 브랜치(`v0.4`)로 두면, 그 브랜치에 올릴 때마다 기본 주소가 새 버전으로 바뀌어요. 다음 버전으로 넘어가면 이 칸만 바꾸세요.
 
 **폰에 설치:** 아이폰 Safari로 주소 열기 → 공유 버튼 → "홈 화면에 추가"
 
