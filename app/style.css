@@ -126,3 +126,14 @@ main > button.primary { width: 100%; margin: 8px 0; }
 .timers b { font-size: 24px; font-variant-numeric: tabular-nums; }
 .goal { font-size: 14px; margin: 4px 0 6px; padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); }
 .center { text-align: center; }
+
+.card.account { padding: 12px 14px; }
+.card.account p { margin: 4px 0; }
+.gap-s { gap: 8px; margin-top: 8px; }
+.field { display: block; margin: 12px 0; font-size: 14px; color: var(--muted); }
+.field input {
+  display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 16px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+}
+.notice { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 14px; }
+button:disabled { opacity: 0.5; }

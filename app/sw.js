@@ -1,8 +1,8 @@
 // 서비스 워커: 앱 파일을 폰에 보관해서 인터넷 없이도 열리게 함
 //   방식: 보관된 파일을 바로 보여 주고(빠름), 인터넷이 되면 뒤에서 새 버전으로 갈아 둠
 //   → 코드를 고쳐 배포하면 "한 번 더 열 때" 새 버전이 보여요
-const CACHE = "iwbm-v0.4b-2";
-const FILES = ["./", "index.html", "style.css", "exercises.js", "app.js", "manifest.webmanifest",
+const CACHE = "iwbm-v0.4c-1";
+const FILES = ["./", "index.html", "style.css", "exercises.js", "app.js", "sync.js", "vendor/supabase-2.117.2.js", "manifest.webmanifest",
                "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", event => {
@@ -18,6 +18,7 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+  if (new URL(event.request.url).origin !== self.location.origin) return;   // Supabase 같은 바깥 주소는 보관하지 않음
   event.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(event.request);
     const fresh = fetch(event.request).then(response => {

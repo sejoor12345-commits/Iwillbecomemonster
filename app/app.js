@@ -12,10 +12,12 @@
 //                                  sets: [ { w: 85, r: 8 }, … ],
 //                                  draft: { w: 85, r: 8 } } ] } ],
 //     currentId: 진행 중인 운동의 id (없으면 null),
-//     custom: { "새 종목": { part, range, step } }      ← 앱에서 직접 추가한 종목
+//     custom: { "새 종목": { part, range, step } },     ← 앱에서 직접 추가한 종목
+//     deleted: [지운 운동 id …], customDirty: true/false ← 인터넷에 아직 반영 안 된 것 (sync.js가 처리)
 //   }
+//   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 
-const APP_VERSION = "v0.4-b.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-c.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -27,9 +29,9 @@ const STEP_CHOICES = [1, 2, 2.5, 4, 5];                                     // �
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.workouts)) return saved;
+    if (saved && Array.isArray(saved.workouts)) return { deleted: [], customDirty: false, ...saved };
   } catch (e) { /* 저장된 게 없거나 깨졌으면 새로 시작 */ }
-  return { workouts: [], currentId: null, custom: {} };
+  return { workouts: [], currentId: null, custom: {}, deleted: [], customDirty: false };
 }
 
 function save() {
@@ -236,6 +238,7 @@ function saveForm() {
   const f = ui.form;
   const old = data.custom[f.name];
   data.custom[f.name] = { part: f.part, range: old ? old.range : [8, 12], step: f.bodyweight ? 0 : f.step };
+  data.customDirty = true;                     // 다음 동기화 때 올리기
   ui.form = null;
   save();
   if (f.editing) render();
@@ -334,10 +337,13 @@ function finishWorkout() {
   save();
   Object.assign(ui, { screen: "summary", summaryId: w.id });
   render();
+  if (typeof syncNow === "function") syncNow();              // 로그인돼 있으면 바로 올리기 (sync.js)
 }
 
 function deleteWorkout(id) {
   if (!confirm("이 운동 기록을 지울까요? 되돌릴 수 없어요.")) return;
+  const w = data.workouts.find(x => x.id === id);
+  if (w && w.synced) data.deleted.push(id);   // 인터넷에 올라가 있던 거면 거기서도 지우기 (다음 동기화 때)
   data.workouts = data.workouts.filter(w => w.id !== id);
   save();
   ui.screen = "home";
@@ -371,7 +377,8 @@ function restoreBackup(file) {
       const restored = JSON.parse(reader.result);
       if (!Array.isArray(restored.workouts)) throw new Error("모양이 달라요");
       if (!confirm(`백업의 운동 ${restored.workouts.length}개로 지금 기록을 바꿀까요?`)) return;
-      data = { workouts: restored.workouts, currentId: restored.currentId || null, custom: restored.custom || {} };
+      data = { workouts: restored.workouts, currentId: restored.currentId || null, custom: restored.custom || {},
+               deleted: [], customDirty: true };
       save();
       ui.screen = data.currentId ? "workout" : "home";
       render();
@@ -399,6 +406,7 @@ function homeView() {
     <main>
       <h2>오늘 분할은?</h2>
       <div class="grid2">${DAYS.map(d => `<button class="big" data-action="start" data-split="${d}">${d}</button>`).join("")}</div>
+      ${typeof accountCard === "function" ? accountCard() : ""}
       <h2>지난 운동</h2>
       ${list}
       <div class="row gap">
@@ -582,7 +590,8 @@ function tick() {
 setInterval(tick, 1000);
 
 function render() {
-  const views = { home: homeView, workout: workoutView, summary: summaryView, export: exportView };
+  const views = { home: homeView, workout: workoutView, summary: summaryView, export: exportView,
+                  login: () => loginView() };                     // loginView는 sync.js에 있음
   if (ui.screen === "workout" && !current()) ui.screen = "home";
   document.getElementById("app").innerHTML = views[ui.screen]();
   const search = document.querySelector('[data-action="search"]');
