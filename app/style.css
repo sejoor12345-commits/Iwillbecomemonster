@@ -18,6 +18,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
+html, button, input, label { touch-action: manipulation; }   /* 버튼을 빠르게 여러 번 눌러도 화면이 확대되지 않게 */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   font-size: 16px; line-height: 1.4;
