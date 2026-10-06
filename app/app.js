@@ -15,7 +15,7 @@
 //     custom: { "새 종목": { part, range, step } }      ← 앱에서 직접 추가한 종목
 //   }
 
-const APP_VERSION = "v0.4-b.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-b.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -112,8 +112,8 @@ function suggestion(split, name) {
   const top = Math.max(...weights);                                 // 가장 무거운 무게 = 본 세트
   const reps = last.sets.filter(s => s.w === top).map(s => s.r);    // 본 세트들의 횟수
   const afterTop = weights.slice(weights.indexOf(top));             // 첫 본 세트부터 끝까지
-  if (Math.min(...afterTop) < top) {                                // 본 세트 뒤에 무게를 낮췄으면 (백오프)
-    return { weight: top, reason: `백오프 있음 → ${num(top)}kg로 ${reps.length + 1}세트 도전 (안 되면 ${num(Math.min(...afterTop))}kg)` };
+  if (Math.min(...afterTop) < top) {                                // 본 세트 뒤에 중간에 무게를 낮췄으면
+    return { weight: top, reason: `중간에 무게를 낮춤 → ${num(top)}kg로 ${reps.length + 1}세트 도전 (안 되면 ${num(Math.min(...afterTop))}kg)` };
   }
   const { range: [low, high], step } = settingOf(name);
   return nextWeight(top, reps, low, high, step, last.rpe);
