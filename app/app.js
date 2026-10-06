@@ -15,7 +15,7 @@
 //     custom: { "새 종목": { part, range, step } }      ← 앱에서 직접 추가한 종목
 //   }
 
-const APP_VERSION = "v0.4-a.4";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-b.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -70,21 +70,61 @@ function finishedWorkouts() {                   // 끝난 운동, 오래된 것 
   return data.workouts.filter(w => w.end).sort((a, b) => a.start.localeCompare(b.start));
 }
 
-// 같은 분할의 지난번 운동에서 이 종목의 세트들 (없으면 null)
-function lastTimeSets(split, name) {
+// 같은 분할의 지난번 운동에서 이 종목 (없으면 null) → { name, rpe, sets }
+function lastTimeExercise(split, name) {
   const past = finishedWorkouts().filter(w => w.split === split).reverse();
   for (const w of past) {
     const ex = w.exercises.find(e => e.name === name && e.sets.length);
-    if (ex) return ex.sets;
+    if (ex) return ex;
   }
   return null;
 }
 
-// 새 종목을 추가할 때 ± 칸에 처음 넣을 값: 지난번 첫 세트 → 없으면 기본값
+function lastTimeSets(split, name) {
+  const ex = lastTimeExercise(split, name);
+  return ex ? ex.sets : null;
+}
+
+
+// ---------- 2-1. 다음 무게 제안 — 노트북 ⑧ next_weight를 그대로 옮긴 것 ----------
+//   노트북(Python)                          앱(JS)
+//   def next_weight(...):                   function nextWeight(...) {
+//   min(reps) >= high                       Math.min(...reps) >= high
+//   return weight + step, "이유"            return { weight: weight + step, reason: "이유" }
+
+function nextWeight(weight, reps, low, high, step, rpe) {
+  if (weight === 0)                               // 맨몸 운동은 무게 대신 횟수를 늘린다
+    return { weight: 0, reason: "맨몸 → 같은 세트 수로 세트마다 1회씩 더" };
+  if (Math.min(...reps) >= high && rpe === 10)    // 다 채웠지만 한계였음 → 굳히기
+    return { weight, reason: `모든 세트 ${high}회 달성, 하지만 RPE 10 → 같은 무게로 한 번 더` };
+  if (Math.min(...reps) >= high)
+    return { weight: weight + step, reason: `모든 세트 ${high}회 달성 → +${num(step)}kg` };
+  if (Math.max(...reps) < low)
+    return { weight: Math.max(weight - step, 0), reason: `최고 ${Math.max(...reps)}회 < ${low}회 → -${num(step)}kg` };
+  return { weight, reason: `같은 무게로 모든 세트 ${high}회까지` };
+}
+
+// 지난번 기록 → { weight, reason } (지난번 기록이 없으면 null)
+function suggestion(split, name) {
+  const last = lastTimeExercise(split, name);
+  if (!last) return null;
+  const weights = last.sets.map(s => s.w);                          // [14, 12, 12, 12]
+  const top = Math.max(...weights);                                 // 가장 무거운 무게 = 본 세트
+  const reps = last.sets.filter(s => s.w === top).map(s => s.r);    // 본 세트들의 횟수
+  const afterTop = weights.slice(weights.indexOf(top));             // 첫 본 세트부터 끝까지
+  if (Math.min(...afterTop) < top) {                                // 본 세트 뒤에 무게를 낮췄으면 (백오프)
+    return { weight: top, reason: `백오프 있음 → ${num(top)}kg로 ${reps.length + 1}세트 도전 (안 되면 ${num(Math.min(...afterTop))}kg)` };
+  }
+  const { range: [low, high], step } = settingOf(name);
+  return nextWeight(top, reps, low, high, step, last.rpe);
+}
+
+// 새 종목을 추가할 때 ± 칸에 처음 넣을 값: 제안 무게 + 지난번 첫 세트 횟수 → 없으면 기본값
 function initialDraft(split, name) {
   const last = lastTimeSets(split, name);
-  if (last) return { w: last[0].w, r: last[0].r };
-  return { w: isBodyweight(name) ? 0 : 20, r: settingOf(name).range[1] };
+  if (!last) return { w: isBodyweight(name) ? 0 : 20, r: settingOf(name).range[1] };
+  const next = suggestion(split, name);
+  return { w: next.weight, r: isBodyweight(name) ? last[0].r + 1 : last[0].r };   // 맨몸은 1회 더
 }
 
 const num = x => String(+Number(x).toFixed(2));          // 85.0 → "85", 62.50 → "62.5"
@@ -99,6 +139,24 @@ function duration(w) {                          // "1:12:30" 모양
   const h = Math.floor(s / 3600); s -= h * 3600;
   const m = Math.floor(s / 60); s -= m * 60;
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function clock(seconds) {                       // 95 → "1:35",  3725 → "1:02:05"
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  const mm = h ? String(m).padStart(2, "0") : String(m);
+  return `${h ? h + ":" : ""}${mm}:${String(r).padStart(2, "0")}`;
+}
+
+function lastSetTime(w) {                       // 이 운동에서 가장 최근에 완료한 세트 시각 (없으면 null)
+  const times = w.exercises.flatMap(e => e.sets.map(s => s.t)).filter(Boolean).sort();
+  return times.length ? times[times.length - 1] : null;
+}
+
+function averageRest(w) {                       // 세트 사이 휴식의 평균(초). 세트가 2개 미만이면 null
+  const times = w.exercises.flatMap(e => e.sets.map(s => s.t)).filter(Boolean).sort().map(t => new Date(t));
+  if (times.length < 2) return null;
+  return (times[times.length - 1] - times[0]) / 1000 / (times.length - 1);
 }
 
 function dateLabel(iso) {                       // "10/05"
@@ -201,8 +259,9 @@ function typeDraft(i, field, value) {           // 숫자를 직접 칠 때: 다
 function completeSet(i) {                       // [세트 완료] 또는 [수정 완료]
   const e = current().exercises[i];
   if (e.draft.r <= 0) return;
-  const set = { w: isBodyweight(e.name) ? 0 : e.draft.w, r: e.draft.r };
+  const set = { w: isBodyweight(e.name) ? 0 : e.draft.w, r: e.draft.r, t: new Date().toISOString() };   // t = 완료 시각 (휴식 계산용)
   if (ui.edit && ui.edit.ex === i) {
+    set.t = e.sets[ui.edit.set].t;              // 수정은 시각을 바꾸지 않음
     e.sets[ui.edit.set] = set;                  // 수정: 그 자리의 세트를 바꿈 (순서 유지)
     ui.edit = null;
     if (e.sets.length) e.draft = { ...e.sets[e.sets.length - 1] };
@@ -390,7 +449,8 @@ function exerciseCard(e, i, split) {
         <b>${escapeHtml(e.name)}</b>
         <button class="link danger small" data-action="remove-ex" data-i="${i}">종목 빼기</button>
       </div>
-      ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}</p>` : ""}
+      ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastTimeExercise(split, e.name).rpe ? " @" + lastTimeExercise(split, e.name).rpe : ""}</p>` : ""}
+      ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(split, e.name)) : ""}
       ${bw ? "" : stepper("w", "kg", e.draft.w)}
       ${stepper("r", "회", e.draft.r)}
       <button class="primary" data-action="complete" data-i="${i}">${editing ? `${ui.edit.set + 1}세트 수정 완료 ✓` : "세트 완료 ✓"}</button>
@@ -463,10 +523,16 @@ function addPanel(w) {
 function workoutView() {
   const w = current();
   return `
-    <header class="bar">
-      <h1>${w.split} <span class="muted small">${dateLabel(w.start)}</span></h1>
-      <button class="primary small" data-action="finish">운동 끝</button>
-    </header>
+    <div class="top">
+      <header class="bar">
+        <h1>${w.split} <span class="muted small">${dateLabel(w.start)}</span></h1>
+        <button class="primary small" data-action="finish">운동 끝</button>
+      </header>
+      <div class="timers">
+        <div><span>전체</span><b id="t-total">0:00</b></div>
+        <div><span>휴식</span><b id="t-rest">—</b></div>
+      </div>
+    </div>
     <main>
       ${w.exercises.map((e, i) => exerciseCard(e, i, w.split)).join("")}
       ${ui.adding ? addPanel(w) : `<button class="add-button" data-action="open-add">+ 종목 추가</button>`}
@@ -484,6 +550,7 @@ function summaryView() {
         <div><b>${totalSets(w)}</b><span>세트</span></div>
         <div><b>${duration(w)}</b><span>운동 시간</span></div>
       </div>
+      ${averageRest(w) ? `<p class="muted small center">세트 사이 평균 휴식 ${clock(averageRest(w))}</p>` : ""}
       <h2>메모 형식</h2>
       <textarea readonly rows="${w.exercises.length + 2}">${escapeHtml(toMemo(w))}</textarea>
       <button class="primary" data-action="copy">복사하기</button>
@@ -502,11 +569,24 @@ function exportView() {
     </main>`;
 }
 
+// 스톱워치: 1초마다 숫자 두 개만 바꿈 (화면 전체를 다시 그리지 않음 → 입력 중인 칸이 안 흔들림)
+function tick() {
+  const w = current();
+  const total = document.getElementById("t-total");
+  const rest = document.getElementById("t-rest");
+  if (!w || !total) return;
+  total.textContent = clock((Date.now() - new Date(w.start)) / 1000);
+  const last = lastSetTime(w);
+  rest.textContent = last ? clock((Date.now() - new Date(last)) / 1000) : "—";
+}
+setInterval(tick, 1000);
+
 function render() {
   const views = { home: homeView, workout: workoutView, summary: summaryView, export: exportView };
   if (ui.screen === "workout" && !current()) ui.screen = "home";
   document.getElementById("app").innerHTML = views[ui.screen]();
   const search = document.querySelector('[data-action="search"]');
+  tick();
   if (search && ui.focusSearch) {
     search.focus();
     search.setSelectionRange(search.value.length, search.value.length);

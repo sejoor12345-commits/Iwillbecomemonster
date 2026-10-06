@@ -114,3 +114,15 @@ textarea {
 }
 main > button.primary { width: 100%; margin: 8px 0; }
 .version { text-align: center; margin-top: 28px; }
+
+.top { position: sticky; top: 0; z-index: 2; }
+.top .bar { position: static; }
+.timers {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  padding: 8px 16px; background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.timers div { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.timers span { font-size: 13px; color: var(--muted); }
+.timers b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.goal { font-size: 14px; margin: 4px 0 6px; padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); }
+.center { text-align: center; }
