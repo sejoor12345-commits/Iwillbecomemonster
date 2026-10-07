@@ -105,7 +105,7 @@ async function uploadWorkout(w) {
 
   // [4] 세트 넣기 (한 줄 = 한 세트)
   const sets = w.exercises.flatMap((e, i) => e.sets.map((s, j) => ({
-    exercise_id: idOf[i + 1], set_no: j + 1, weight: s.w, reps: s.r, done_at: s.t || null,
+    workout_exercise_id: idOf[i + 1], set_no: j + 1, weight: s.w, reps: s.r, done_at: s.t || null,
   })));
   if (sets.length) {
     result = await db.from("sets").insert(sets);
