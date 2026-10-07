@@ -17,7 +17,7 @@
 //   }
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 
-const APP_VERSION = "v0.4-c.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-c.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -135,7 +135,8 @@ function totalSets(w) {
   return w.exercises.reduce((sum, e) => sum + e.sets.length, 0);
 }
 
-function duration(w) {                          // "1:12:30" 모양
+function duration(w) {                          // "1:12:30" 모양 (메모에서 가져온 기록은 시간이 없음)
+  if (w.imported) return "📥 메모";
   const end = w.end ? new Date(w.end) : new Date();
   let s = Math.max(0, Math.round((end - new Date(w.start)) / 1000));
   const h = Math.floor(s / 3600); s -= h * 3600;
@@ -410,6 +411,7 @@ function homeView() {
       <h2>지난 운동</h2>
       ${list}
       <div class="row gap">
+        <button data-action="import-screen">메모 가져오기</button>
         <button data-action="export">내보내기</button>
         <button data-action="backup">백업</button>
         <label class="button">복원<input type="file" accept="application/json" data-action="restore" hidden></label>
@@ -591,7 +593,8 @@ setInterval(tick, 1000);
 
 function render() {
   const views = { home: homeView, workout: workoutView, summary: summaryView, export: exportView,
-                  login: () => loginView() };                     // loginView는 sync.js에 있음
+                  login: () => loginView(),                       // loginView는 sync.js에 있음
+                  import: () => importView() };                   // importView는 import.js에 있음
   if (ui.screen === "workout" && !current()) ui.screen = "home";
   document.getElementById("app").innerHTML = views[ui.screen]();
   const search = document.querySelector('[data-action="search"]');
