@@ -2,8 +2,9 @@
 //
 // [지도]
 //   들어오는 것: 이메일 · 비밀번호, 폰에 저장된 data (app.js)
-//   하는 일:     로그인 → 아직 안 올린 운동을 표 3개(workouts · workout_exercises · sets)로 나눠 올리기
-//                지운 운동은 인터넷에서도 지우기, 내가 만든 종목(my_exercises) 올리기
+//   하는 일:     [올리기] 아직 안 올린 운동을 표 3개(workouts · workout_exercises · sets)로 나눠 올리기,
+//                         지운 운동은 인터넷에서도 지우기, 내가 만든 종목(my_exercises) 올리기
+//                [받기]   인터넷에만 있는 운동(다른 기기에서 한 것)을 표 3개에서 모아 폰으로 가져오기
 //   나가는 것:   홈 화면의 계정 칸 (로그인 상태 · 올릴 기록 수 · 동기화 결과)
 //
 // 원칙: 기록은 항상 폰에 먼저 저장된다(app.js). 여기는 인터넷이 될 때 "올리기"만 담당.
@@ -112,6 +113,53 @@ async function uploadWorkout(w) {
   }
 }
 
+// ---------- 2-1. 받기 (v0.4-c-2) ----------
+
+// 표 3개 → 앱의 모양 (운동 → 종목들 → 세트들)
+//   workouts 한 줄 + 그 운동의 workout_exercises 줄들 + 각 종목의 sets 줄들  →  { id, split, start, end, exercises: [...] }
+function toLocalWorkout(row) {
+  const exercises = [...row.workout_exercises]
+    .sort((a, b) => a.position - b.position)                      // 그날 한 순서대로
+    .map(e => {
+      const sets = [...e.sets]
+        .sort((a, b) => a.set_no - b.set_no)                      // 1세트, 2세트 … 순서대로
+        .map(s => ({ w: Number(s.weight), r: s.reps, t: s.done_at }));
+      const last = sets[sets.length - 1] || { w: 0, r: 0 };
+      return { name: e.name, rpe: e.rpe, sets, draft: { w: last.w, r: last.r } };
+    });
+  return { id: row.id, split: row.split, start: row.started_at, end: row.ended_at, exercises, synced: true };
+}
+
+async function downloadAll(justUploaded) {
+  // 표 3개를 이름표(id)로 이어서 한 번에 가져오기. RLS 덕분에 내 기록만 온다.
+  const { data: rows, error } = await db.from("workouts")
+    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, sets(set_no, weight, reps, done_at))");
+  if (error) throw error;
+
+  const remoteIds = new Set(rows.map(r => r.id));
+  const localIds = new Set(data.workouts.map(w => w.id));
+  let added = 0, removed = 0;
+
+  for (const row of rows) {                                       // [1] 인터넷에만 있는 운동 → 폰에 추가
+    if (localIds.has(row.id) || data.deleted.includes(row.id)) continue;
+    data.workouts.push(toLocalWorkout(row));
+    added++;
+  }
+  const before = data.workouts.length;                            // [2] 폰에서 '올라가 있던' 운동인데 인터넷에 없음
+  data.workouts = data.workouts.filter(w =>                       //     → 다른 기기에서 지운 것 → 폰에서도 지우기
+    !(w.synced && w.end && !remoteIds.has(w.id) && !justUploaded.has(w.id)));          //     (방금 올린 운동은 절대 안 지움)
+  removed = before - data.workouts.length;
+
+  const { data: mine, error: e2 } = await db.from("my_exercises")  // [3] 내가 만든 종목: 폰에 없는 것만 가져오기
+    .select("name, part, range_low, range_high, step");
+  if (e2) throw e2;
+  for (const c of mine) {
+    if (!data.custom[c.name]) data.custom[c.name] = { part: c.part, range: [c.range_low, c.range_high], step: Number(c.step) };
+  }
+  save();
+  return { added, removed };
+}
+
 async function syncNow() {
   if (!account.user || account.busy || !navigator.onLine) return;
   account.busy = true;
@@ -124,8 +172,10 @@ async function syncNow() {
       data.deleted = data.deleted.filter(x => x !== id);
       save();
     }
+    const justUploaded = new Set();
     for (const w of finishedWorkouts().filter(w => !w.synced)) {  // 아직 안 올린 운동 (로그인 전 기록 포함)
       await uploadWorkout(w);
+      justUploaded.add(w.id);
       w.synced = true;                                            // 하나 올릴 때마다 바로 저장 → 끊겨도 다음에 이어서
       save();
     }
@@ -140,8 +190,10 @@ async function syncNow() {
       data.customDirty = false;
       save();
     }
+    const { added, removed } = await downloadAll(justUploaded);   // 올린 다음에 받기
     const now = new Date();
-    account.status = `동기화 완료 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const changes = [added && `받아온 기록 ${added}개`, removed && `다른 기기에서 지운 기록 ${removed}개 정리`].filter(Boolean).join(", ");
+    account.status = `동기화 완료 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}${changes ? " · " + changes : ""}`;
   } catch (error) {
     account.status = `동기화 실패 — 다음에 다시 시도해요 (${authError(error)})`;
   }

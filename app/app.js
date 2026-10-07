@@ -17,7 +17,7 @@
 //   }
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 
-const APP_VERSION = "v0.4-c.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-c.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
