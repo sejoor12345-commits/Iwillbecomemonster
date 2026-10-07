@@ -17,7 +17,7 @@
 //   }
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 
-const APP_VERSION = "v0.4-c.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-c.4";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -29,9 +29,20 @@ const STEP_CHOICES = [1, 2, 2.5, 4, 5];                                     // �
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.workouts)) return { deleted: [], customDirty: false, ...saved };
+    if (saved && Array.isArray(saved.workouts)) return renameExercise({ deleted: [], customDirty: false, ...saved }, "Incline bench press", "Smith IBP");
   } catch (e) { /* 저장된 게 없거나 깨졌으면 새로 시작 */ }
   return { workouts: [], currentId: null, custom: {}, deleted: [], customDirty: false };
+}
+
+// 종목 이름 바꾸기 (예전에 다른 이름으로 저장된 기록 고치기). 바뀐 운동은 다시 올리도록 synced를 끔
+function renameExercise(d, from, to) {
+  for (const w of d.workouts) {
+    for (const e of w.exercises) {
+      if (e.name === from) { e.name = to; w.synced = false; }
+    }
+  }
+  if (d.custom[from]) { delete d.custom[from]; d.customDirty = true; }
+  return d;
 }
 
 function save() {
@@ -39,6 +50,7 @@ function save() {
 }
 
 let data = load();
+save();                                          // load에서 고친 것(종목 이름 바꾸기 등)을 바로 저장
 
 // 화면 상태 (저장 안 함): 지금 어느 화면인지, 어떤 종목이 펼쳐져 있는지 등
 const ui = {

@@ -11,7 +11,7 @@
 //   parse_superset(tokens)            parseSuperset(tokens)    → [{ name, sets }, { name, sets }]
 //   parse_memo(memo)                  parseMemo(memo)          → { sessions, skipped }
 
-const ALIASES = { "ibp": "Free IBP", "hanging leg raise": "HLR" };    // 같은 종목의 다른 이름 (소문자로 적기)
+const ALIASES = { "ibp": "Free IBP", "hanging leg raise": "HLR", "incline bench press": "Smith IBP" };    // 같은 종목의 다른 이름 (소문자로 적기)
 
 // 이름 정리: 별명 → 정식 이름, 대소문자만 다르면 목록의 이름으로 ("Smith sll" → "Smith SLL")
 function canonicalName(raw) {

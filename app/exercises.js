@@ -4,6 +4,7 @@
 const EXERCISES = {
   "Bench press": { part: "가슴", range: [6, 8], step: 5 },
   "Free IBP": { part: "가슴", range: [8, 10], step: 5 },
+  "Smith IBP": { part: "가슴", range: [8, 10], step: 5 },
   "DB press": { part: "가슴", range: [12, 15], step: 2 },
   "Dips": { part: "가슴", range: [10, 15], step: 0 },
   "Pull up": { part: "등", range: [8, 12], step: 0 },
