@@ -1,10 +1,10 @@
-// I will become monster — v0.4-d-1 체중 · 식단 (📈 기록 화면)
+// I will become monster — v0.4-d-1 체중 · 식단 (🥗 Nutrition 화면)
 //
 // [지도]
 //   들어오는 것: 매일 체중, 끼니마다 음식 + 칼로리 + 탄단지 (FatSecret 숫자를 옮겨 적기)
 //   하는 일:     weight_log.ipynb ③~⑤를 JS로 옮긴 것 — 7일 평균, 내 기록으로 유지 칼로리 역산, 추천 섭취
 //                + 그날 탄단지 비율 vs 목표 비율
-//   나가는 것:   📈 기록 화면 (탭: 식단 · 체중 / 운동)  +  Supabase 표 3개 올리기 · 받기
+//   나가는 것:   🥗 Nutrition 화면 (탭: 식단 / 체중)  +  Supabase 표 3개 올리기 · 받기
 //
 // [저장 모양] app.js의 data 안에 같이 저장
 //   body:  { "2026-10-09": { w: 83.6, synced: false } }                     ← 하루에 체중 하나
@@ -32,7 +32,7 @@ const MACROS = [                           // 1g당 칼로리
 ];
 
 Object.assign(ui, {
-  recTab: "food",        // 📈 기록 화면의 탭: food / workout
+  nutritionTab: "food",  // Nutrition 화면의 탭: food(식단) / weight(체중)
   day: null,             // 보고 있는 날 ("2026-10-09"), null = 오늘
   weightDraft: null,     // 체중 칸에 들어 있는 값
   mealForm: null,        // 음식 추가 칸이 열린 끼니 ("아침" …)
@@ -213,31 +213,36 @@ function setSpeed(v) {
 
 // ---------- 4. 화면 ----------
 
-function recordsView() {
-  const tab = ui.recTab;
-  return `
-    <header class="bar"><h1>📈 기록</h1><button class="small" data-action="home">홈</button></header>
-    <div class="tabs">
-      <button class="${tab === "food" ? "selected" : ""}" data-action="n-tab" data-v="food">식단 · 체중</button>
-      <button class="${tab === "workout" ? "selected" : ""}" data-action="n-tab" data-v="workout">운동</button>
-    </div>
-    <main>${tab === "food" ? foodTab() : workoutTab()}</main>`;
-}
-
-function foodTab() {
+// Nutrition: [식단] 칼로리 · 탄단지 · 끼니별 식사  /  [체중] 체중 입력 · 그래프. 위에 날짜 고르기는 둘이 같이 씀
+function nutritionView() {
+  const tab = ui.nutritionTab;
   const today = isoDay();
   const day = ui.day || today;
+  const body = tab === "food"
+    ? calorieCard(day, today) + macroCard(day, today) + mealsCard(day)
+    : weightCard(day) + weightChart(today);
   return `
-    <div class="daynav">
-      <button class="small" data-action="n-day" data-v="-1" aria-label="전날">◀</button>
-      <b>${dayLabel(day)}${day === today ? " (오늘)" : ""}</b>
-      <button class="small" data-action="n-day" data-v="1" aria-label="다음 날" ${day >= today ? "disabled" : ""}>▶</button>
+    <header class="bar"><h1>🥗 Nutrition</h1><button class="small" data-action="home">홈</button></header>
+    <div class="tabs">
+      <button class="${tab === "food" ? "selected" : ""}" data-action="n-tab" data-v="food">식단</button>
+      <button class="${tab === "weight" ? "selected" : ""}" data-action="n-tab" data-v="weight">체중</button>
     </div>
-    ${weightCard(day)}
-    ${calorieCard(day, today)}
-    ${macroCard(day, today)}
-    ${mealsCard(day)}
-    ${weightChart(today)}`;
+    <main>
+      <div class="daynav">
+        <button class="small" data-action="n-day" data-v="-1" aria-label="전날">◀</button>
+        <b>${dayLabel(day)}${day === today ? " (오늘)" : ""}</b>
+        <button class="small" data-action="n-day" data-v="1" aria-label="다음 날" ${day >= today ? "disabled" : ""}>▶</button>
+      </div>
+      ${body}
+    </main>`;
+}
+
+// 홈의 Nutrition 버튼에 보여 줄 한 줄: "오늘 1,130 / 2,100kcal · 체중 83.8kg"
+function nutritionSummary() {
+  const today = isoDay();
+  const target = targetKcal(maintenanceInfo(today).maintenance);
+  const w = data.body[today];
+  return `오늘 ${kcalText(dayTotals(today).kcal)} / ${kcalText(target)}kcal · ${w ? `체중 ${num(w.w)}kg` : "체중 아직"}`;
 }
 
 function weightCard(day) {
@@ -443,17 +448,6 @@ function hideWeightTip() {
   if (tip) tip.hidden = true;
 }
 
-function workoutTab() {
-  const counts = DAYS.map(d => [d, finishedWorkouts().filter(w => w.split === d).length]);
-  return `
-    <section class="card pad">
-      <div class="card-head static"><b>운동 그래프</b><span class="muted small">v0.4-d-2에서 만들어요</span></div>
-      <p class="small">분할마다 기록이 2번 이상 쌓이면 종목별 e1RM 선이 생겨요. 지금까지 기록:</p>
-      <p class="small muted">${counts.map(([d, n]) => `${d} ${n}회`).join(" · ")}</p>
-    </section>`;
-}
-
-
 // ---------- 5. 인터넷 올리기 · 받기 (sync.js의 syncNow가 부름) ----------
 
 function nutritionPending() {
@@ -553,10 +547,10 @@ document.addEventListener("click", event => {
   if (!el) return;
   const v = el.dataset.v;
   switch (el.dataset.action) {
-    case "records":
-      Object.assign(ui, { screen: "records", day: null, weightDraft: null, mealForm: null, ratioPanel: false, speedPanel: false });
+    case "nutrition":
+      Object.assign(ui, { screen: "nutrition", day: null, weightDraft: null, mealForm: null, ratioPanel: false, speedPanel: false });
       return render();
-    case "n-tab": ui.recTab = v; return render();
+    case "n-tab": Object.assign(ui, { nutritionTab: v, mealForm: null, ratioPanel: false, speedPanel: false }); return render();
     case "n-day":
       Object.assign(ui, { day: addDays(ui.day || isoDay(), Number(v)), weightDraft: null, mealForm: null, ratioPanel: false });
       if (ui.day >= isoDay()) ui.day = null;

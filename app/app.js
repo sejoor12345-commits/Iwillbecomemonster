@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.4-d.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-d.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -60,7 +60,8 @@ save();                                          // load에서 고친 것(종목
 
 // 화면 상태 (저장 안 함): 지금 어느 화면인지, 어떤 종목이 펼쳐져 있는지 등
 const ui = {
-  screen: data.currentId ? "workout" : "home",   // home / workout / summary / export
+  screen: data.currentId ? "workout" : "home",   // home / workouts / workout / summary / export / nutrition …
+  workoutTab: "log",     // Workout 화면의 탭: log(기록) / graph(그래프)
   active: null,          // 펼쳐진 종목 번호
   menu: null,            // 세트 칩을 눌렀을 때 { ex, set }
   edit: null,            // 수정 중인 세트 { ex, set }
@@ -345,7 +346,7 @@ function finishWorkout() {
     data.workouts = data.workouts.filter(x => x.id !== w.id);
     data.currentId = null;
     save();
-    ui.screen = "home";
+    ui.screen = "workouts";
     render();
     return;
   }
@@ -365,7 +366,7 @@ function deleteWorkout(id) {
   if (w && w.synced) data.deleted.push(id);   // 인터넷에 올라가 있던 거면 거기서도 지우기 (다음 동기화 때)
   data.workouts = data.workouts.filter(w => w.id !== id);
   save();
-  ui.screen = "home";
+  ui.screen = "workouts";
   render();
 }
 
@@ -415,7 +416,38 @@ function restoreBackup(file) {
 
 // ---------- 5. 화면 그리기 ----------
 
+// 홈: Workout / Nutrition 두 갈래만. 버튼 안에 최근 상태를 한 줄씩
 function homeView() {
+  const last = finishedWorkouts().pop();
+  const nutritionLine = typeof nutritionSummary === "function" ? nutritionSummary() : "";   // nutrition.js
+  return `
+    <header class="bar"><h1>I will become monster</h1></header>
+    <main>
+      <div class="sections">
+        <button class="section-button" data-action="workouts">
+          <b>🏋️ Workout</b>
+          <span class="muted small">분할 운동 기록 · 운동 그래프</span>
+          <span class="small">${last ? `지난 운동 ${dateLabel(last.start)} ${last.split}` : "아직 기록 없음"}</span>
+        </button>
+        <button class="section-button" data-action="nutrition">
+          <b>🥗 Nutrition</b>
+          <span class="muted small">식단 · 체중</span>
+          <span class="small">${nutritionLine}</span>
+        </button>
+      </div>
+      ${typeof accountCard === "function" ? accountCard() : ""}
+      <div class="row gap">
+        <button data-action="backup">백업</button>
+        <label class="button">복원<input type="file" accept="application/json" data-action="restore" hidden></label>
+      </div>
+      <p class="muted small">백업 파일에는 운동 · 체중 · 식사가 모두 들어가요.</p>
+      <p class="muted small version">${APP_VERSION}</p>
+    </main>`;
+}
+
+// Workout: [기록] 분할 고르기 + 지난 운동 / [그래프] 종목별 e1RM (v0.4-d-2)
+function workoutsView() {
+  const tab = ui.workoutTab;
   const past = finishedWorkouts().reverse();
   const list = past.length ? past.map(w => `
       <button class="history" data-action="open-summary" data-id="${w.id}">
@@ -424,23 +456,28 @@ function homeView() {
         <div class="muted small">${w.exercises.map(e => escapeHtml(e.name)).join(", ")}</div>
       </button>`).join("")
     : `<p class="muted">아직 기록이 없어요. 위에서 분할을 골라 시작하세요.</p>`;
-  return `
-    <header class="bar"><h1>I will become monster</h1></header>
-    <main>
+  const counts = DAYS.map(d => `${d} ${past.filter(w => w.split === d).length}회`).join(" · ");
+  const body = tab === "log" ? `
       <h2>오늘 분할은?</h2>
       <div class="grid2">${DAYS.map(d => `<button class="big" data-action="start" data-split="${d}">${d}</button>`).join("")}</div>
-      <button class="wide records-button" data-action="records">📈 기록 — 체중 · 식단 · 운동</button>
-      ${typeof accountCard === "function" ? accountCard() : ""}
       <h2>지난 운동</h2>
       ${list}
       <div class="row gap">
         <button data-action="import-screen">메모 가져오기</button>
         <button data-action="export">내보내기</button>
-        <button data-action="backup">백업</button>
-        <label class="button">복원<input type="file" accept="application/json" data-action="restore" hidden></label>
-      </div>
-      <p class="muted small version">${APP_VERSION}</p>
-    </main>`;
+      </div>` : `
+      <section class="card pad">
+        <div class="card-head static"><b>운동 그래프</b><span class="muted small">v0.4-d-2에서 만들어요</span></div>
+        <p class="small">분할마다 기록이 2번 이상 쌓이면 종목별 e1RM 선이 생겨요. 지금까지 기록:</p>
+        <p class="small muted">${counts}</p>
+      </section>`;
+  return `
+    <header class="bar"><h1>🏋️ Workout</h1><button class="small" data-action="home">홈</button></header>
+    <div class="tabs">
+      <button class="${tab === "log" ? "selected" : ""}" data-action="workout-tab" data-v="log">기록</button>
+      <button class="${tab === "graph" ? "selected" : ""}" data-action="workout-tab" data-v="graph">그래프</button>
+    </div>
+    <main>${body}</main>`;
 }
 
 function setChips(i, e) {
@@ -574,9 +611,9 @@ function workoutView() {
 
 function summaryView() {
   const w = data.workouts.find(x => x.id === ui.summaryId);
-  if (!w) { ui.screen = "home"; return homeView(); }
+  if (!w) { ui.screen = "workouts"; return workoutsView(); }
   return `
-    <header class="bar"><h1>${dateLabel(w.start)} ${w.split}</h1><button class="small" data-action="home">홈</button></header>
+    <header class="bar"><h1>${dateLabel(w.start)} ${w.split}</h1><button class="small" data-action="workouts">Workout</button></header>
     <main>
       <div class="stats">
         <div><b>${w.exercises.length}</b><span>종목</span></div>
@@ -594,7 +631,7 @@ function summaryView() {
 function exportView() {
   const text = finishedWorkouts().map(toMemo).join("\n\n");
   return `
-    <header class="bar"><h1>내보내기</h1><button class="small" data-action="home">홈</button></header>
+    <header class="bar"><h1>내보내기</h1><button class="small" data-action="workouts">Workout</button></header>
     <main>
       <p class="muted small">끝난 운동 전체를 오래된 순서로 메모 형식으로 바꿨어요. 노트북 ①의 MEMO에 붙여넣으세요.</p>
       <textarea readonly rows="16">${escapeHtml(text || "아직 끝난 운동이 없어요.")}</textarea>
@@ -615,11 +652,11 @@ function tick() {
 setInterval(tick, 1000);
 
 function render() {
-  const views = { home: homeView, workout: workoutView, summary: summaryView, export: exportView,
+  const views = { home: homeView, workouts: workoutsView, workout: workoutView, summary: summaryView, export: exportView,
                   login: () => loginView(),                       // loginView는 sync.js에 있음
                   import: () => importView(),                     // importView는 import.js에 있음
-                  records: () => recordsView() };                 // recordsView는 nutrition.js에 있음
-  if (ui.screen === "workout" && !current()) ui.screen = "home";
+                  nutrition: () => nutritionView() };             // nutritionView는 nutrition.js에 있음
+  if (ui.screen === "workout" && !current()) ui.screen = "workouts";
   document.getElementById("app").innerHTML = views[ui.screen]();
   const search = document.querySelector('[data-action="search"]');
   tick();
@@ -662,6 +699,8 @@ document.addEventListener("click", event => {
     case "open-summary": Object.assign(ui, { screen: "summary", summaryId: el.dataset.id }); return render();
     case "delete-workout": return deleteWorkout(el.dataset.id);
     case "home": ui.screen = "home"; return render();
+    case "workouts": ui.screen = "workouts"; return render();
+    case "workout-tab": ui.workoutTab = el.dataset.v; return render();
     case "export": ui.screen = "export"; return render();
     case "copy": return copyText(document.querySelector("textarea").value);
     case "backup": return downloadBackup();

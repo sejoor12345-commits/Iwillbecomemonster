@@ -141,7 +141,7 @@ button:disabled { opacity: 0.5; }
 .history.dim { opacity: 0.5; }
 code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--accent-soft); padding: 1px 4px; border-radius: 4px; }
 
-/* ---------- v0.4-d 📈 기록 (nutrition.js) ---------- */
+/* ---------- v0.4-d 홈 갈래 · Workout · Nutrition ---------- */
 :root {
   --m0: #2a78d6; --m1: #eb6834; --m2: #1baf7a;      /* 탄 · 단 · 지 (dataviz 기본 팔레트 1~3번, 색약 검사 통과) */
   --dot: #9a9a96; --grid: #ecebe8;
@@ -151,7 +151,9 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background:
 }
 :root[data-theme="dark"] { --m0: #3987e5; --m1: #d95926; --m2: #199e70; --dot: #85847e; --grid: #2c2c2a; }
 
-.records-button { margin-top: 10px; }
+.sections { display: grid; gap: 12px; margin-top: 16px; }
+.section-button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 18px 16px; border-radius: 14px; }
+.section-button b { font-size: 22px; }
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 16px 0; max-width: 560px; margin: 0 auto; }
 .card.pad { padding: 12px 14px 14px; }
 .daynav { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 4px; }

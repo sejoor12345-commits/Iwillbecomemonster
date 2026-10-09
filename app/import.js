@@ -164,7 +164,7 @@ function doImport() {
     added++;
   }
   save();
-  Object.assign(ui, { screen: "home", importText: "", importPlan: null });
+  Object.assign(ui, { screen: "workouts", importText: "", importPlan: null });
   render();
   alert(`운동 ${added}개를 가져왔어요.`);
   if (typeof syncNow === "function") syncNow();                   // 로그인돼 있으면 바로 올리기
@@ -189,7 +189,7 @@ function importView() {
       <button class="primary wide" data-action="do-import" ${plan.sessions.some(s => !s.duplicate) ? "" : "disabled"}>
         가져오기 (${plan.sessions.filter(s => !s.duplicate).length}개)</button>` : "";
   return `
-    <header class="bar"><h1>메모 가져오기</h1><button class="small" data-action="home">홈</button></header>
+    <header class="bar"><h1>메모 가져오기</h1><button class="small" data-action="workouts">Workout</button></header>
     <main>
       <p class="muted small">노트북 ①과 같은 형식의 메모를 붙여넣어요. <code>가슴 10/05</code>처럼 분할 뒤에 날짜를 쓰면 그 날짜로, 날짜가 없으면 순서대로 하루씩 앞으로 추정해요. 같은 날 같은 분할이 이미 있으면 건너뛰어요.</p>
       <textarea id="import-text" rows="12" placeholder="가슴 10/05&#10;◦ Bench press: 85*8*4 @8&#10;◦ Pull up: 13,12,11">${escapeHtml(ui.importText || "")}</textarea>

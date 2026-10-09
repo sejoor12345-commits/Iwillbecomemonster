@@ -29,11 +29,17 @@ async function initAccount() {
   account.user = session ? session.user : null;
   db.auth.onAuthStateChange((_event, session) => {                // 로그인 · 로그아웃될 때마다
     account.user = session ? session.user : null;
-    if (ui.screen === "home") render();
+    refreshIfSafe();
   });
   window.addEventListener("online", () => syncNow());             // 인터넷이 다시 연결되면 올리기
   render();
   syncNow();
+}
+
+// 동기화 결과를 화면에 반영. 글을 적는 중인 칸(식사 추가 · 비율 바꾸기)이 열려 있으면 지워지지 않게 그리지 않음
+function refreshIfSafe() {
+  if (["home", "workouts"].includes(ui.screen)) render();
+  if (ui.screen === "nutrition" && !ui.mealForm && !ui.ratioPanel) render();
 }
 
 async function signIn(email, password) {
@@ -165,7 +171,7 @@ async function syncNow() {
   if (!account.user || account.busy || !navigator.onLine) return;
   account.busy = true;
   account.status = "동기화 중…";
-  if (ui.screen === "home") render();
+  refreshIfSafe();
   try {
     for (const id of [...data.deleted]) {                         // 폰에서 지운 운동 → 인터넷에서도 지우기
       const { error } = await db.from("workouts").delete().eq("id", id);
@@ -200,7 +206,7 @@ async function syncNow() {
     account.status = `동기화 실패 — 다음에 다시 시도해요 (${authError(error)})`;
   }
   account.busy = false;
-  if (ui.screen === "home") render();
+  refreshIfSafe();
 }
 
 
