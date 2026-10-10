@@ -78,15 +78,48 @@ a { color: var(--accent); }
   h2 { font-size: 19px; }
 }
 @media print {
-  :root { --bg: #fff; --surface: #fff; }
-  body { font-size: 10.5pt; }
+  /* 인쇄용: A4 · 흑백으로 찍어도 읽히게 · 잉크 아끼기 · 손으로 답 쓸 칸 */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --line: #bbb;
+    --accent: #000; --accent-soft: #fff; --code-bg: #f4f4f4; --warn-soft: #fff; color-scheme: light;
+  }
+  @page { size: A4; margin: 14mm 15mm 16mm; }
+  body { font-size: 9.6pt; line-height: 1.45; }
   main { max-width: none; padding: 0; }
-  .sec { border: none; padding: 0; margin: 0 0 8mm; break-before: page; }
-  #s0 { break-before: auto; }
+  header.top h1 { font-size: 16pt; }
+  header.top p { font-size: 9pt; margin-bottom: 4mm; }
+  .sec { border: none; border-top: 1.5pt solid #000; border-radius: 0; padding: 3mm 0 0; margin: 0 0 6mm; }
+  h2 { font-size: 13pt; margin-bottom: 1mm; break-after: avoid; }
+  h2 .num { display: inline; min-width: 0; height: auto; background: none; color: #000; font-size: 13pt; padding: 0; }
+  h2 .num::after { content: "."; }
+  h2 .time { font-size: 8.5pt; border-color: #888; padding: 0 6px; }
+  h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+  p, ul, ol { margin: 1.5mm 0; }
+  .goal { font-size: 9pt; margin-bottom: 2mm; }
+  .small, span.small { font-size: 8pt; }
+  code { font-size: 8.4pt; padding: 0 2px; background: none; }
+  .code, .cell { border: 0.6pt solid #999; border-radius: 3px; margin: 2mm 0; background: #fff; }
+  .code-head, .cell-head { font-size: 7.5pt; padding: 1mm 2.5mm; background: #fff; border-bottom: 0.6pt solid #ccc; }
+  .cell-head span { color: #000; }
+  .code pre, .cell pre { font-size: 8pt; line-height: 1.35; padding: 2mm 2.5mm; white-space: pre-wrap; background: #f6f6f6; }
   .run, .out { display: none !important; }
-  .code pre, .cell pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 8.6pt; }
-  .code, .cell, .questions li, .answers .ans, tr, .flow .box { break-inside: avoid; }
-  .blank { height: 22px; }
+  table { font-size: 8.6pt; margin: 2mm 0; }
+  th, td { padding: 1.2mm 1.5mm; border-top: 0.5pt solid #bbb; }
+  th { font-size: 8pt; color: #000; border-bottom: 0.8pt solid #000; }
+  .flow { gap: 1mm; margin: 2mm 0; }
+  .flow .box { border: 0.6pt solid #000; border-radius: 3px; padding: 1.5mm 2mm; font-size: 9pt; }
+  .flow .arrow { font-size: 9pt; line-height: 1; }
+  .flow .row3 { gap: 2mm; }
+  .questions { border: 0.8pt solid #000; border-radius: 3px; padding: 2.5mm 3mm 0; margin-top: 3mm; }
+  .q-title { font-size: 9pt; margin-bottom: 1.5mm; }
+  .questions li { margin: 0 0 2mm; font-size: 9.4pt; }
+  .qn { min-width: 13mm; color: #000; }
+  .blank { height: 9mm; margin-left: 13mm; border-bottom: 0.5pt dotted #777;
+           background: repeating-linear-gradient(to bottom, transparent 0, transparent 4.2mm, #ccc 4.2mm, #ccc 4.5mm); }
+  .answers { break-before: page; }
+  .answers .ans { grid-template-columns: 14mm 1fr; padding: 1.5mm 0; font-size: 9pt; }
+  .answers .ans pre { font-size: 7.8pt; padding: 1.5mm 2mm; background: #f6f6f6; border-radius: 2px; }
+  .code, .cell, .questions li, .answers .ans, tr, .flow, .flow .box { break-inside: avoid; }
   a { color: inherit; text-decoration: none; }
 }
 </style>
