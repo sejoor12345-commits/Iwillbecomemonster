@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.4-d.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-d.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -456,7 +456,6 @@ function workoutsView() {
         <div class="muted small">${w.exercises.map(e => escapeHtml(e.name)).join(", ")}</div>
       </button>`).join("")
     : `<p class="muted">아직 기록이 없어요. 위에서 분할을 골라 시작하세요.</p>`;
-  const counts = DAYS.map(d => `${d} ${past.filter(w => w.split === d).length}회`).join(" · ");
   const body = tab === "log" ? `
       <h2>오늘 분할은?</h2>
       <div class="grid2">${DAYS.map(d => `<button class="big" data-action="start" data-split="${d}">${d}</button>`).join("")}</div>
@@ -466,11 +465,7 @@ function workoutsView() {
         <button data-action="import-screen">메모 가져오기</button>
         <button data-action="export">내보내기</button>
       </div>` : `
-      <section class="card pad">
-        <div class="card-head static"><b>운동 그래프</b><span class="muted small">v0.4-d-2에서 만들어요</span></div>
-        <p class="small">분할마다 기록이 2번 이상 쌓이면 종목별 e1RM 선이 생겨요. 지금까지 기록:</p>
-        <p class="small muted">${counts}</p>
-      </section>`;
+      ${typeof progressView === "function" ? progressView() : ""}`;      // progress.js
   return `
     <header class="bar"><h1>🏋️ Workout</h1><button class="small" data-action="home">홈</button></header>
     <div class="tabs">

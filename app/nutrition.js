@@ -405,7 +405,7 @@ function weightChart(today) {
     <section class="card pad">
       ${head}
       <div class="legend small"><span><i class="key dot"></i>매일 체중</span><span><i class="key line"></i>7일 평균</span></div>
-      <div class="wchart">
+      <div class="chart wchart">
         <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="최근 ${CHART_DAYS}일 체중, 마지막 7일 평균 ${last.a.toFixed(1)}kg">
           ${grid}${xTicks}
           <line id="wc-x" class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/>

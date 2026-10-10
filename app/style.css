@@ -201,18 +201,30 @@ button.full { width: 100%; margin-top: 4px; }
 .key { display: inline-block; vertical-align: middle; margin-right: 5px; }
 .key.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot); }
 .key.line { width: 14px; height: 2px; background: var(--accent); }
-.wchart { position: relative; }
-.wchart svg { display: block; overflow: visible; touch-action: pan-y; }
-.wchart .grid { stroke: var(--grid); stroke-width: 1; }
-.wchart .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.wchart .avg { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.wchart .daily { fill: var(--dot); stroke: var(--surface); stroke-width: 2; }
-.wchart .avg-end { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
-.wchart .end-label { fill: var(--text); font-size: 12px; font-weight: 600; }
-.wchart .cross { stroke: var(--muted); stroke-width: 1; }
-.wchart .hit { fill: transparent; }
+.chart { position: relative; }
+.chart svg { display: block; overflow: visible; touch-action: pan-y; }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .avg { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .daily { fill: var(--dot); stroke: var(--surface); stroke-width: 2; }
+.chart .avg-end { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart .end-label { fill: var(--text); font-size: 12px; font-weight: 600; }
+.chart .cross { stroke: var(--muted); stroke-width: 1; }
+.chart .hit { fill: transparent; }
 .tip {
   position: absolute; top: 0; padding: 6px 10px; font-size: 13px; line-height: 1.35; pointer-events: none;
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
 }
 .tip b { font-variant-numeric: tabular-nums; }
+
+/* 운동 그래프 (progress.js) */
+.plist { padding: 0 14px; }
+.prow {
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; text-align: left;
+  border: none; border-radius: 0; background: none; padding: 10px 0; border-top: 1px solid var(--line);
+}
+.plist > .prow:first-child { border-top: none; }
+.pname { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pval { color: var(--text); font-variant-numeric: tabular-nums; }
+.badge { font-size: 12px; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.pchart { padding: 0 0 12px; }
