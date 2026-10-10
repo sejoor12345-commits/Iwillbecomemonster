@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v0.4 코드 복습 노트</title>
+<style>
+:root {
+  --bg: #f6f6f4; --surface: #ffffff; --text: #141413; --muted: #5f5e5a; --line: #e3e2de;
+  --accent: #2a78d6; --accent-soft: #e4effb; --code-bg: #f1f0ec; --warn-soft: #fdf1e7;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --surface: #1f1f1e; --text: #f2f2ef; --muted: #a8a79f; --line: #34332f;
+    --accent: #5598e7; --accent-soft: #1d2d42; --code-bg: #262624; --warn-soft: #3a2a1d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --surface: #1f1f1e; --text: #f2f2ef; --muted: #a8a79f; --line: #34332f;
+  --accent: #5598e7; --accent-soft: #1d2d42; --code-bg: #262624; --warn-soft: #3a2a1d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  font-size: 16px; line-height: 1.6; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+header.top h1 { font-size: 26px; margin: 0 0 4px; }
+header.top p { margin: 0; color: var(--muted); }
+h2 { display: flex; align-items: center; gap: 10px; font-size: 21px; margin: 0 0 6px; }
+h2 .num { display: inline-grid; place-items: center; min-width: 32px; height: 32px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: 16px; }
+h2 .time { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+h3 { font-size: 17px; margin: 22px 0 8px; }
+.sec { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 18px; margin: 18px 0; }
+.goal { margin: 0 0 12px; color: var(--muted); }
+.small, span.small { font-size: 13px; color: var(--muted); }
+.box .small { display: block; }
+code { font-family: ui-monospace, Menlo, Consolas, "D2Coding", monospace; font-size: 0.88em; background: var(--code-bg);
+  padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; }
+.code, .cell { border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; overflow: hidden; background: var(--code-bg); }
+.code pre, .cell pre { padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.5; }
+.code pre code, .cell pre code { background: none; padding: 0; font-size: inherit; }
+.code-head, .cell-head { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.cell-head span { font-weight: 700; color: var(--accent); }
+.run { font: inherit; font-size: 13px; font-weight: 700; color: #fff; background: var(--accent); border: none;
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.out { border-top: 1px dashed var(--line); background: var(--surface); color: var(--text); white-space: pre-wrap; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14.5px; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid var(--line); }
+th { font-size: 13px; color: var(--muted); border-top: none; }
+table.plan td:first-child { width: 24px; }
+table.plan td:nth-child(3) { white-space: nowrap; }
+table.pairs td:nth-child(2) { color: var(--muted); font-size: 13px; }
+.flow { display: grid; justify-items: center; gap: 4px; margin: 12px 0; }
+.flow .box { width: 100%; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; text-align: center; }
+.flow .arrow { color: var(--muted); font-size: 14px; }
+.flow .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.questions { margin-top: 18px; border-radius: 12px; background: var(--warn-soft); padding: 14px 16px 6px; }
+.q-title { font-weight: 700; margin-bottom: 6px; }
+.questions ol { list-style: none; padding: 0; margin: 0; }
+.questions li { margin: 0 0 12px; }
+.qn { display: inline-block; min-width: 46px; color: var(--accent); }
+.blank { height: 28px; border-bottom: 1px dashed var(--line); margin: 2px 0 0 46px; }
+.answers .ans { display: grid; grid-template-columns: 56px 1fr; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.answers .ans pre { background: var(--code-bg); border-radius: 8px; padding: 8px 10px; margin: 0 0 6px; font-size: 13px;
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Menlo, Consolas, monospace; }
+ol.explain li { margin-bottom: 10px; }
+a { color: var(--accent); }
+@media (max-width: 560px) {
+  .flow .row3 { grid-template-columns: 1fr; }
+  .sec { padding: 16px 14px; }
+  h2 { font-size: 19px; }
+}
+@media print {
+  :root { --bg: #fff; --surface: #fff; }
+  body { font-size: 10.5pt; }
+  main { max-width: none; padding: 0; }
+  .sec { border: none; padding: 0; margin: 0 0 8mm; break-before: page; }
+  #s0 { break-before: auto; }
+  .run, .out { display: none !important; }
+  .code pre, .cell pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 8.6pt; }
+  .code, .cell, .questions li, .answers .ans, tr, .flow .box { break-inside: avoid; }
+  .blank { height: 22px; }
+  a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <h1>v0.4 코드 복습 노트</h1>
+  <p>2026-10-10 야간 · 약 2시간 · 인터넷 없이 · 내 앱(I will become monster)의 진짜 코드로</p>
+</header>
+
+<section class="sec" id="s0">
+  <h2><span class="num">0</span>오늘 복습 쓰는 법<span class="time">5분</span></h2>
+  <p class="goal">🎯 2시간 뒤에 "버튼 하나를 누르면 무슨 일이 일어나는지" 처음부터 끝까지 내 말로 설명할 수 있기</p>
+  
+<ul>
+  <li><b>순서대로</b> 가되, 막히면 ☆ 표시하고 넘어가. 다 끝나고 ☆만 다시 보면 돼.</li>
+  <li><b>문제는 먼저 예상</b>을 적고(종이나 메모) → 그다음 정답(맨 아래 <a href="#answers">정답</a>)을 봐. 예상 없이 정답부터 보면 남는 게 거의 없어.</li>
+  <li><b>실행 셀</b>: PC에서 이 파일을 열었으면 <b>▶ 실행</b>을 눌러 바로 결과를 볼 수 있어 (인터넷 필요 없음). 크롬 F12 → Console에 붙여넣어도 돼. 폰 PDF에서는 실행 대신 예상만 하고 정답과 비교해.</li>
+  <li>코드는 전부 <b>지금 네 앱의 진짜 코드</b>에서 가져왔어. 길면 줄였고, 줄인 곳은 <code>…</code>로 표시했어.</li>
+</ul>
+<table class="plan"><thead><tr><th></th><th>파트</th><th>시간</th><th>핵심</th></tr></thead><tbody><tr><td>☐</td><td>1. 앱 지도</td><td>15분</td><td>파일 9개 · data와 ui · 큰 흐름 한 장</td></tr><tr><td>☐</td><td>2. JS 문법 다시 잡기</td><td>25분</td><td>Python 짝 맞추기 · map/filter/reduce · ?? · 참/거짓</td></tr><tr><td>☐</td><td>3. HTML은 어떻게 그려지나</td><td>20분</td><td>태그 · render() · 템플릿 글자 · join · escapeHtml · CSS 토큰</td></tr><tr><td>☐</td><td>4. 버튼이 함수에 닿기까지</td><td>15분</td><td>data-action · closest · dataset · 클릭 따라가기</td></tr><tr><td>☐</td><td>5. 저장과 동기화</td><td>20분</td><td>save/load · JSON · async/await · 올리기→받기 · 서비스 워커</td></tr><tr><td>☐</td><td>6. 핵심 규칙 3개 손으로</td><td>15분</td><td>다음 무게 · 유지 칼로리 · 그래프 점</td></tr><tr><td>☐</td><td>7. 고칠 곳 찾기</td><td>15분</td><td>"이걸 바꾸려면 어느 파일의 무엇?" 12문제</td></tr><tr><td>☐</td><td>8. 조용한 버그 도감 + 말로 설명하기</td><td>10분</td><td>에러 없이 틀리는 것들 총정리</td></tr></tbody></table>
+
+</section>
+<section class="sec" id="s1">
+  <h2><span class="num">1</span>앱 지도 — 파일 9개와 큰 흐름<span class="time">15분</span></h2>
+  <p class="goal">🎯 어떤 걸 고치고 싶을 때 "어느 파일을 열지" 바로 떠올리기</p>
+  
+<h3>1-1. 파일마다 하는 일</h3>
+<table class=""><thead><tr><th>파일</th><th>하는 일</th><th>대표 이름</th></tr></thead><tbody><tr><td><code>index.html</code></td><td>뼈대. 빈 상자 하나(<code>#app</code>) + 스크립트를 <b>위에서부터 순서대로</b> 불러옴</td><td><code>&lt;div id=&quot;app&quot;&gt;</code></td></tr><tr><td><code>style.css</code></td><td>모양. 색은 <b>토큰</b>(<code>--accent</code> 등)으로 한 곳에서 관리, 다크 모드도 여기</td><td><code>--accent</code></td></tr><tr><td><code>exercises.js</code></td><td>기본 종목 설정표 (노트북 ②와 같음)</td><td><code>EXERCISES</code></td></tr><tr><td><code>app.js</code></td><td>저장(data · save · load) + 운동 기록 화면 + <b>render()</b> + 버튼 연결의 중심</td><td><code>data, ui, render, nextWeight</code></td></tr><tr><td><code>nutrition.js</code></td><td>체중 · 식단: 계산(노트북 v0.3) + 화면 + 동기화</td><td><code>maintenanceInfo, dayTotals</code></td></tr><tr><td><code>progress.js</code></td><td>운동 그래프 + 숨기기</td><td><code>progressSeries, e1rm</code></td></tr><tr><td><code>import.js</code></td><td>메모 가져오기 (노트북 ③ parse_memo)</td><td><code>parseMemo</code></td></tr><tr><td><code>sync.js</code></td><td>로그인 + 올리기 · 받기 (Supabase)</td><td><code>syncNow, uploadWorkout</code></td></tr><tr><td><code>sw.js</code></td><td>서비스 워커: 앱 파일을 폰에 보관 → 인터넷 없이도 열림</td><td><code>CACHE</code></td></tr></tbody></table>
+<p class="small">+ 저장소의 <code>supabase/migrations/*.sql</code> = 인터넷 표 설계도 (표 · 칸 · RLS).</p>
+
+<h3>1-2. 상자 두 개: <code>data</code>와 <code>ui</code></h3>
+<div class="code"><div class="code-head">app.js (줄임)</div><pre><code>let data = load();      // 기록 (운동 · 체중 · 식사 · 설정) → 저장함. 껐다 켜도 남음
+const ui = {            // 지금 화면 상태 → 저장 안 함. 껐다 켜면 처음으로
+  screen: &quot;home&quot;,       // 어느 화면? home / workouts / workout / nutrition …
+  workoutTab: &quot;log&quot;,    // Workout 화면의 탭
+  active: null,         // 펼쳐진 종목 번호
+  …
+};
+// nutrition.js · progress.js는 자기 칸을 덧붙임: Object.assign(ui, { day: null, mealForm: null, … })</code></pre></div>
+<p>Python으로 치면 <code>data</code>는 파일에 저장하는 dict, <code>ui</code>는 프로그램이 켜져 있는 동안만 쓰는 dict야.</p>
+
+<h3>1-3. 앱 전체가 도는 고리 (이 그림 하나가 핵심)</h3>
+<div class="flow">
+  <div class="box">👆 버튼 누름</div><div class="arrow">↓</div>
+  <div class="box"><b>click 리스너</b> — 누른 곳의 <code>data-action</code>을 보고 함수를 고름<span class="small">(4장)</span></div><div class="arrow">↓</div>
+  <div class="box"><b>함수</b> — <code>data</code>나 <code>ui</code>를 바꿈 (예: 세트 하나 추가)</div><div class="arrow">↓</div>
+  <div class="row3">
+    <div class="box"><b>save()</b><br>data → JSON 글자 → 폰 보관함<span class="small">(5장)</span></div>
+    <div class="box"><b>render()</b><br>ui.screen → 화면 함수 → HTML 글자 → #app<span class="small">(3장)</span></div>
+    <div class="box"><b>syncNow()</b><br>로그인돼 있으면 안 올린 것 → Supabase<span class="small">(5장)</span></div>
+  </div>
+</div>
+<p>앱의 거의 모든 버튼이 이 고리를 돌아. <b>"바꾸고 → 저장하고 → 다시 그리고 → (올리고)"</b>.</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q1-1</b> 아래 4개는 <code>data</code>와 <code>ui</code> 중 어디에 있을까? (가) 오늘 체중 83.6 (나) 지금 보고 있는 탭(식단/체중) (다) 펼쳐 둔 그래프 (라) 숨긴 종목 목록<div class="blank"></div></li><li><b class="qn">Q1-2</b> 앱을 완전히 껐다 켜면 Q1-1의 (가)~(라) 중 무엇이 처음 상태로 돌아갈까?<div class="blank"></div></li><li><b class="qn">Q1-3</b> 다음을 고치려면 어느 파일을 열까? (가) 운동 그래프 점 계산 (나) 로그인 에러 문구 (다) Bench press 반복 범위 (라) 버튼 파란색<div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s2">
+  <h2><span class="num">2</span>JS 문법 다시 잡기 — Python 짝 맞추기<span class="time">25분</span></h2>
+  <p class="goal">🎯 앱 코드에 자주 나오는 문법 20개를 Python으로 바꿔 읽을 수 있기</p>
+  
+<h3>2-1. 짝 맞추기 표 (이것만 알아도 앱 코드의 80%가 읽혀)</h3>
+<table class="pairs"><thead><tr><th>JS</th><th>메모</th><th>Python</th></tr></thead><tbody><tr><td><code>const x = 1</code></td><td><code>let x = 1</code></td><td><code>x = 1</code> — const는 다시 못 넣음, let은 다시 넣을 수 있음</td></tr><tr><td><code>function f(a) { return a * 2; }</code></td><td></td><td><code>def f(a): return a * 2</code></td></tr><tr><td><code>a =&gt; a * 2</code></td><td><b>화살표 함수</b></td><td><code>lambda a: a * 2</code></td></tr><tr><td><code>`${w}kg × ${r}회`</code></td><td>백틱 + ${}</td><td><code>f&quot;{w}kg × {r}회&quot;</code></td></tr><tr><td><code>=== / !==</code></td><td></td><td><code>== / !=</code></td></tr><tr><td><code>&amp;&amp; / || / !</code></td><td></td><td><code>and / or / not</code></td></tr><tr><td><code>a ?? b</code></td><td>a가 null/undefined일 때만 b</td><td><code>b if a is None else a</code></td></tr><tr><td><code>조건 ? a : b</code></td><td></td><td><code>a if 조건 else b</code></td></tr><tr><td><code>for (const s of sets)</code></td><td></td><td><code>for s in sets:</code></td></tr><tr><td><code>list.map(s =&gt; s.r)</code></td><td></td><td><code>[s[&#x27;r&#x27;] for s in list]</code></td></tr><tr><td><code>list.filter(s =&gt; s.w === 85)</code></td><td></td><td><code>[s for s in list if s[&#x27;w&#x27;] == 85]</code></td></tr><tr><td><code>list.find(s =&gt; s.r &gt;= 10)</code></td><td>없으면 undefined</td><td><code>next((s for s in list if …), None)</code></td></tr><tr><td><code>list.some(f) / list.every(f)</code></td><td></td><td><code>any(…) / all(…)</code></td></tr><tr><td><code>list.reduce((sum, x) =&gt; sum + x, 0)</code></td><td>0 = 시작값</td><td><code>sum(list)</code></td></tr><tr><td><code>Object.keys(d) / Object.entries(d)</code></td><td></td><td><code>list(d.keys()) / list(d.items())</code></td></tr><tr><td><code>[...a]  /  { ...d, k: 1 }</code></td><td>펼치기</td><td><code>a.copy()  /  {**d, &#x27;k&#x27;: 1}</code></td></tr><tr><td><code>const [c, p, f] = [50, 30, 20]</code></td><td>꺼내기</td><td><code>c, p, f = [50, 30, 20]</code></td></tr><tr><td><code>new Set(list)</code></td><td></td><td><code>set(list)</code></td></tr><tr><td><code>Math.max(...list)</code></td><td>... 필수!</td><td><code>max(list)</code></td></tr><tr><td><code>list.length</code></td><td></td><td><code>len(list)</code></td></tr><tr><td><code>null / undefined</code></td><td>없음 / 그런 칸 없음</td><td><code>None</code></td></tr></tbody></table>
+
+<h3>2-2. 목록 다루기 — 세트 목록으로 연습</h3>
+<p>앱에서 세트는 <code>{ w: 무게, r: 횟수 }</code> 모양이야. 아래 ①~⑤의 출력을 먼저 예상해 봐.</p>
+
+<div class="cell" data-id="2-1">
+  <div class="cell-head"><span>실행 셀 2-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const sets = [{ w: 85, r: 8 }, { w: 85, r: 7 }, { w: 80, r: 10 }];
+
+console.log(sets.map(s =&gt; s.r));                     // ① 횟수만 뽑기
+console.log(sets.filter(s =&gt; s.w === 85).length);    // ② 85kg 세트 개수
+console.log(sets.find(s =&gt; s.r &gt;= 10));              // ③ 처음으로 10회 이상인 세트
+console.log(sets.some(s =&gt; s.r &lt; 8), sets.every(s =&gt; s.r &gt;= 8));   // ④
+console.log(Math.max(...sets.map(s =&gt; s.w)));        // ⑤ 가장 무거운 무게</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<h3>2-3. 사전 다루기 · reduce의 시작값</h3>
+
+<div class="cell" data-id="2-2">
+  <div class="cell-head"><span>실행 셀 2-2</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const kcal = { &quot;10-08&quot;: 2200, &quot;10-09&quot;: 1130 };
+
+console.log(Object.keys(kcal));                                               // ①
+console.log(Object.entries(kcal).map(([day, k]) =&gt; day + &quot;=&quot; + k).join(&quot;, &quot;));  // ②
+console.log(Object.keys(kcal).reduce((sum, d) =&gt; sum + kcal[d], 0));          // ③
+console.log(Object.keys(kcal).reduce((sum, d) =&gt; sum + kcal[d]));             // ④ , 0 없음
+console.log([...new Set([&quot;Dips&quot;, &quot;Pull up&quot;, &quot;Dips&quot;])]);                       // ⑤</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<h3>2-4. 펼치기(...) · 꺼내기 · ?? · &&</h3>
+<p><code>...</code>은 "안에 있는 걸 펼쳐 놓기"야. 같은 이름이 또 나오면 <b>뒤에 온 게 이겨</b>(덮어씀). 앱의 <code>load()</code>가 이걸로 예전 저장본에 없는 칸을 채워 (5장).</p>
+
+<div class="cell" data-id="2-3">
+  <div class="cell-head"><span>실행 셀 2-3</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const saved = { workouts: [1, 2], custom: {} };
+const d = { deleted: [], body: {}, ...saved, custom: { A: 1 } };
+console.log(Object.keys(d), d.custom);       // ① 펼치기(...) 순서와 덮어쓰기
+
+const [c, p, f] = [50, 30, 20];
+console.log(p);                              // ② 꺼내기
+
+let draft = null;
+console.log(draft ?? 70, 0 ?? 70, 0 || 70);  // ③ ?? 와 || 의 차이
+
+const rec = null;
+console.log(rec &amp;&amp; rec.w);                   // ④</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<h3>2-5. 참/거짓 — Python과 다른 곳 ⚠️</h3>
+<p>Python에서는 <code>not []</code>이 True(빈 목록 = 거짓)였지? JS는 다르니까 조심.</p>
+
+<div class="cell" data-id="2-4">
+  <div class="cell-head"><span>실행 셀 2-4</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>function check(x) {
+  if (x) return &quot;참&quot;;
+  return &quot;거짓&quot;;
+}
+console.log(check(0), check(&quot;&quot;), check(null));     // ①
+console.log(check([]), check({}), check(&quot;0&quot;));     // ② 파이썬과 다른 곳!
+console.log(check([].length));                     // ③</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p>그래서 앱에서는 빈 목록인지 볼 때 꼭 <code>.length</code>를 써: <code>if (!items.length)</code>, <code>items.length ? … : "아직 기록이 없어요"</code>.</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q2-1</b> 실행 셀 2-1의 ①~⑤ 출력을 예상해 봐.<div class="blank"></div></li><li><b class="qn">Q2-2</b> 실행 셀 2-2의 ①~⑤ 출력을 예상해 봐. 특히 ④는 왜 그렇게 나올까?<div class="blank"></div></li><li><b class="qn">Q2-3</b> 실행 셀 2-3의 ①~④ 출력을 예상해 봐. ③에서 <code>0 ?? 70</code>과 <code>0 || 70</code>은 왜 다를까?<div class="blank"></div></li><li><b class="qn">Q2-4</b> 실행 셀 2-4의 ①~③ 출력을 예상해 봐. 앱에서 <code>if (!items.length)</code>라고 쓰는 이유는?<div class="blank"></div></li><li><b class="qn">Q2-5</b> Python으로 바꿔 봐: <code>const top = Math.max(...sets.filter(s => s.r >= 8).map(s => s.w));</code><div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s3">
+  <h2><span class="num">3</span>HTML은 어떻게 그려지나 — render()와 템플릿 글자<span class="time">20분</span></h2>
+  <p class="goal">🎯 "화면 = JS가 만든 HTML 글자"라는 걸 코드로 따라가기</p>
+  
+<h3>3-1. 태그 하나 해부하기</h3>
+<div class="code"><div class="code-head">workoutsView가 만드는 &#x27;지난 운동&#x27; 버튼 하나</div><pre><code>&lt;button class=&quot;history&quot; data-action=&quot;open-summary&quot; data-id=&quot;a&quot;&gt;10/05 등&lt;/button&gt;
+ └ 태그 이름   └ 모양(CSS)      └ 무슨 버튼인지(JS)        └ 어느 운동    └ 내용 = 보이는 글자   └ 닫는 태그</code></pre></div>
+<ul>
+  <li><b>class</b> → style.css의 규칙과 연결 (모양)</li>
+  <li><b>data-…</b> → JS가 읽는 메모 (4장). 화면에는 안 보임</li>
+</ul>
+
+<h3>3-2. index.html은 뼈대뿐 — 그리고 스크립트 순서</h3>
+<div class="code"><div class="code-head">index.html (줄임)</div><pre><code>&lt;body&gt;
+  &lt;div id=&quot;app&quot;&gt;&lt;/div&gt;                          ← 화면이 들어갈 빈 상자 하나
+  &lt;script src=&quot;exercises.js&quot;&gt;&lt;/script&gt;          ← 위에서부터 차례로 실행
+  &lt;script src=&quot;app.js&quot;&gt;&lt;/script&gt;
+  &lt;script src=&quot;nutrition.js&quot;&gt;&lt;/script&gt;          ← sync.js보다 먼저!
+  &lt;script src=&quot;progress.js&quot;&gt;&lt;/script&gt;
+  &lt;script src=&quot;vendor/supabase-2.117.2.js&quot;&gt;&lt;/script&gt;
+  &lt;script src=&quot;sync.js&quot;&gt;&lt;/script&gt;               ← 여기서 앱을 열자마자 동기화 시작
+  &lt;script src=&quot;import.js&quot;&gt;&lt;/script&gt;
+&lt;/body&gt;</code></pre></div>
+<p>실제로 있었던 버그: 처음엔 <code>nutrition.js</code>가 <code>sync.js</code> <b>아래</b>에 있었어. 앱을 열자마자 하는 동기화가 체중 · 식사 코드를 불러오기 <b>전에</b> 돌아서, 체중 · 식사가 안 올라갔지. 그래서 순서를 바꿨어. 또 다른 파일의 함수를 부를 때 <code>if (typeof syncNutrition === "function")</code>처럼 "있으면 부르기"로 써 둔 것도 같은 이유야.</p>
+
+<h3>3-3. render() — 화면 함수 고르기</h3>
+<div class="code"><div class="code-head">app.js (줄임)</div><pre><code>function render() {
+  const views = { home: homeView, workouts: workoutsView, workout: workoutView, …,
+                  nutrition: () =&gt; nutritionView() };            // 이름 → 화면 함수
+  document.getElementById(&quot;app&quot;).innerHTML = views[ui.screen]();  // 고른 함수를 불러서 나온 HTML 글자를 상자에 넣기
+}</code></pre></div>
+<p>Python으로: <code>views = {"home": home_view, …}</code> → <code>html = views[ui["screen"]]()</code>. 사전에 <b>함수</b>를 넣어 두고, 꺼내서 <code>()</code>로 부르는 거야.</p>
+
+<h3>3-4. 화면 함수 = HTML 글자 만들기 · map + join</h3>
+
+<div class="cell" data-id="3-1">
+  <div class="cell-head"><span>실행 셀 3-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const past = [{ id: &quot;a&quot;, split: &quot;등&quot;, sets: 26 }, { id: &quot;b&quot;, split: &quot;가슴&quot;, sets: 44 }];
+
+const list = past.map(w =&gt; `&lt;button data-action=&quot;open-summary&quot; data-id=&quot;${w.id}&quot;&gt;${w.split} ${w.sets}세트&lt;/button&gt;`);
+console.log(list.length);                 // ① map의 결과는?
+console.log(list.join(&quot;&quot;));              // ② 글자 하나로 붙이기
+console.log(`&lt;main&gt;${list}&lt;/main&gt;`);      // ③ join 없이 바로 넣으면?</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p>진짜 앱의 <code>workoutsView()</code>도 똑같이 <code>past.map(w => `&lt;button …&gt;`).join("")</code>으로 목록을 만들어.</p>
+
+<h3>3-5. escapeHtml — 사용자가 적은 글자는 꼭 바꿔서 넣기</h3>
+
+<div class="cell" data-id="3-2">
+  <div class="cell-head"><span>실행 셀 3-2</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>function escapeHtml(text) {
+  return String(text).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g, c =&gt; ({ &quot;&amp;&quot;: &quot;&amp;amp;&quot;, &quot;&lt;&quot;: &quot;&amp;lt;&quot;, &quot;&gt;&quot;: &quot;&amp;gt;&quot;, &#x27;&quot;&#x27;: &quot;&amp;quot;&quot;, &quot;&#x27;&quot;: &quot;&amp;#39;&quot; }[c]));
+}
+const food = &quot;&lt;i&gt;닭&lt;/i&gt; 가슴살&quot;;
+console.log(`&lt;b&gt;${food}&lt;/b&gt;`);               // ① 그대로 넣으면 (화면에서는 &#x27;닭&#x27;이 기울어짐)
+console.log(`&lt;b&gt;${escapeHtml(food)}&lt;/b&gt;`);   // ② 바꿔서 넣으면 (화면에 글자 그대로 보임)</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p>음식 이름, 종목 이름처럼 <b>사용자가 적은 글자</b>는 화면에 넣기 전에 <code>escapeHtml()</code>을 거쳐. 안 그러면 글자가 HTML로 해석돼서 모양이 깨지거나, 나쁜 코드가 들어갈 수도 있어.</p>
+
+<h3>3-6. CSS — class와 색 토큰</h3>
+<div class="code"><div class="code-head">style.css (줄임)</div><pre><code>:root { --accent: #2a78d6; … }                                         /* 라이트 모드 색 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=&quot;light&quot;]) { --accent: #3987e5; … }             /* 폰이 다크 모드면 */
+}
+:root[data-theme=&quot;dark&quot;] { --accent: #3987e5; … }                      /* 다크로 고정했을 때 */
+
+button.primary { background: var(--accent); color: var(--accent-text); }   /* 토큰을 꺼내 쓰기 */</code></pre></div>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q3-1</b> 실행 셀 3-1의 ①~③ 출력을 예상해 봐. ③처럼 <code>join("")</code> 없이 넣으면 화면에는 무엇이 더 보일까?<div class="blank"></div></li><li><b class="qn">Q3-2</b> 실행 셀 3-2의 ①, ②를 예상해 봐. 화면에서 ①과 ②는 각각 어떻게 보일까?<div class="blank"></div></li><li><b class="qn">Q3-3</b> <code>render()</code>에서 <code>ui.screen</code>이 <code>"nutrition"</code>이면 어떤 함수가 불릴까? 그 함수는 어느 파일에 있을까?<div class="blank"></div></li><li><b class="qn">Q3-4</b> <code>nutrition.js</code> 줄을 다시 <code>sync.js</code> 아래로 옮기면, 앱을 열었을 때 무슨 일이 생길까? (에러가 날까?)<div class="blank"></div></li><li><b class="qn">Q3-5</b> 앱의 파란색을 초록색으로 바꾸려면 style.css에서 <code>--accent</code>를 몇 군데 고쳐야 할까? 왜?<div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s4">
+  <h2><span class="num">4</span>버튼이 함수에 닿기까지 — data-action<span class="time">15분</span></h2>
+  <p class="goal">🎯 버튼 하나를 눌렀을 때 어떤 함수가 어떤 값으로 불리는지 따라가기</p>
+  
+<h3>4-1. 리스너 하나가 모든 클릭을 받음</h3>
+<div class="code"><div class="code-head">app.js (줄임)</div><pre><code>document.addEventListener(&quot;click&quot;, event =&gt; {           // 화면 어디를 눌러도 여기로 옴
+  const el = event.target.closest(&quot;[data-action]&quot;);     // 누른 곳에서 위로 올라가며 data-action 달린 태그 찾기
+  if (!el) return;                                      // 없으면 (빈 곳을 누름) 아무것도 안 함
+  const i = Number(el.dataset.i), j = Number(el.dataset.j);
+  switch (el.dataset.action) {                          // 이름 보고 나누기 (Python의 if/elif)
+    case &quot;start&quot;: return startWorkout(el.dataset.split);
+    case &quot;complete&quot;: return completeSet(i);
+    case &quot;home&quot;: ui.screen = &quot;home&quot;; return render();
+    …
+  }
+});</code></pre></div>
+<table class=""><thead><tr><th>HTML에 쓴 것</th><th>JS에서 읽는 법</th><th>값</th></tr></thead><tbody><tr><td><code>data-action=&quot;start&quot;</code></td><td><code>el.dataset.action</code></td><td><code>&quot;start&quot;</code></td></tr><tr><td><code>data-split=&quot;가슴&quot;</code></td><td><code>el.dataset.split</code></td><td><code>&quot;가슴&quot;</code></td></tr><tr><td><code>data-i=&quot;2&quot;</code></td><td><code>el.dataset.i</code></td><td><code>"2"</code> ← <b>글자!</b> 그래서 <code>Number()</code></td></tr></tbody></table>
+<p><b>closest</b>가 필요한 이유: 버튼 안의 <code>&lt;b&gt;</code> 글자를 눌러도 <code>event.target</code>은 <code>&lt;b&gt;</code>야. 거기서 위로 올라가며 <code>data-action</code>이 있는 버튼을 찾아 주는 게 <code>closest</code>야.</p>
+<p><b>파일마다 리스너가 따로</b> 있어: app.js(운동), nutrition.js(<code>n-…</code>), progress.js(<code>graph-…</code>), sync.js(로그인), import.js(가져오기). 모두 클릭을 듣지만, 각자 <b>자기 이름만</b> 처리하고 모르는 이름은 그냥 지나가.</p>
+
+<h3>4-2. 끝까지 따라가 보기: Workout의 "가슴" 버튼</h3>
+<div class="code"><div class="code-head">app.js (줄임)</div><pre><code>&lt;button class=&quot;big&quot; data-action=&quot;start&quot; data-split=&quot;가슴&quot;&gt;가슴&lt;/button&gt;
+
+function startWorkout(split) {
+  const w = { id: Date.now().toString(36), split, start: new Date().toISOString(), end: null, exercises: [] };
+  data.workouts.push(w);                 // ① data 바꾸기
+  data.currentId = w.id;
+  save();                                // ② 저장
+  Object.assign(ui, { screen: &quot;workout&quot;, adding: true, … });   // ③ ui 바꾸기 (Python의 ui.update({...}))
+  render();                              // ④ 다시 그리기 → views[&quot;workout&quot;] → workoutView()
+}</code></pre></div>
+
+<h3>4-3. 다시 그리기의 함정</h3>
+<p>render()는 #app 상자 안을 <b>통째로 새로</b> 만들어. 그래서 입력 칸에 글자를 치는 중에 render()가 불리면 <b>적던 글자가 사라져</b>. 그래서 sync.js는 동기화가 끝나도 바로 그리지 않고 <code>refreshIfSafe()</code>로 확인해:</p>
+<div class="code"><div class="code-head">sync.js</div><pre><code>function refreshIfSafe() {
+  if ([&quot;home&quot;, &quot;workouts&quot;].includes(ui.screen)) render();
+  if (ui.screen === &quot;nutrition&quot; &amp;&amp; !ui.mealForm &amp;&amp; !ui.ratioPanel) render();   // 식사 추가 칸이 열려 있으면 안 그림
+}</code></pre></div>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q4-1</b> 어깨 날 운동 중, 두 번째 종목(번호 1)의 <b>세트 완료</b> 버튼은 HTML로 <code>&lt;button data-action="complete" data-i="1"&gt;</code>야. 이걸 누르면 어떤 함수가 어떤 값으로 불릴까? <code>Number()</code>가 없으면 무엇이 들어갈까?<div class="blank"></div></li><li><b class="qn">Q4-2</b> Workout의 "가슴" 버튼을 누른 뒤 일어나는 일을 순서대로 4단계로 말해 봐. 마지막에 화면을 그리는 함수 이름은?<div class="blank"></div></li><li><b class="qn">Q4-3</b> nutrition.js의 리스너에 <code>case "start"</code>가 없는데, 가슴 버튼을 누르면 nutrition.js 리스너에서는 무슨 일이 일어날까?<div class="blank"></div></li><li><b class="qn">Q4-4</b> 식사 추가 칸에 "닭가"까지 쳤을 때 동기화가 끝났어. <code>refreshIfSafe()</code> 없이 그냥 <code>render()</code>를 불렀다면?<div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s5">
+  <h2><span class="num">5</span>저장과 동기화 — 폰에서 인터넷까지<span class="time">20분</span></h2>
+  <p class="goal">🎯 "세트 완료 → 폰 저장 → Supabase"를 코드 이름으로 설명하기</p>
+  
+<h3>5-1. save · load (5일차 복습)</h3>
+<div class="code"><div class="code-head">app.js (줄임)</div><pre><code>function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));   // 사전 → 글자 → 폰 보관함 (글자만 들어감!)
+}
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));   // 글자 → 사전
+    if (saved &amp;&amp; Array.isArray(saved.workouts))
+      return renameExercise({ ...EMPTY_EXTRAS(), ...saved }, &quot;Incline bench press&quot;, &quot;Smith IBP&quot;);
+  } catch (e) { /* 깨졌으면 새로 시작 */ }
+  return { workouts: [], currentId: null, custom: {}, ...EMPTY_EXTRAS() };
+}
+// EMPTY_EXTRAS() = { deleted: [], body: {}, meals: [], nutrition: null, hiddenGraphs: [], … }  ← 나중 버전에서 늘어난 칸들</code></pre></div>
+<p><code>{ ...EMPTY_EXTRAS(), ...saved }</code>: 빈 칸들을 먼저 깔고, 저장본으로 덮어써. 그래서 v0.4-c 때 저장한 기록(체중 칸이 없음)을 열어도 <code>data.body</code>가 <code>{}</code>로 생겨서 에러가 안 나. (실행 셀 2-3 ①과 같은 원리)</p>
+
+<div class="cell" data-id="5-1">
+  <div class="cell-head"><span>실행 셀 5-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const data = { body: { &quot;2026-10-09&quot;: { w: 83.6 } } };
+const text = JSON.stringify(data);
+console.log(typeof text, text);                       // ① 보관함에 들어가는 모양
+
+const back = JSON.parse(text);
+console.log(back.body[&quot;2026-10-09&quot;].w + 0.1);         // ② ± 버튼으로 0.1 더하면?
+const round1 = x =&gt; Math.round(x * 10) / 10;
+console.log(round1(back.body[&quot;2026-10-09&quot;].w + 0.1)); // ③ 앱에서 쓰는 방법</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+
+<h3>5-2. async / await — 인터넷 답 기다리기</h3>
+<table class=""><thead><tr><th>JS</th><th>Python</th><th>뜻</th></tr></thead><tbody><tr><td><code>async function f()</code></td><td><code>async def f():</code></td><td>기다리는 일이 있는 함수</td></tr><tr><td><code>await db.from(…).select()</code></td><td><code>await …</code></td><td>답이 올 때까지 <b>이 함수만</b> 여기서 멈춤</td></tr><tr><td><code>throw error</code></td><td><code>raise error</code></td><td>에러 던지기 → 가장 가까운 catch로 점프</td></tr><tr><td><code>try { } catch (e) { }</code></td><td><code>try: … except: …</code></td><td></td></tr><tr><td><code>const { data: rows, error } = await …</code></td><td></td><td>답에서 <code>data</code>를 꺼내며 이름을 <code>rows</code>로 바꿈</td></tr></tbody></table>
+
+<div class="cell" data-id="5-2">
+  <div class="cell-head"><span>실행 셀 5-2</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const fakeDb = {                                      // 가짜 인터넷: 0.3초 뒤에 답이 옴
+  select: () =&gt; new Promise(ok =&gt; setTimeout(() =&gt; ok({ data: [1, 2], error: null }), 300)),
+};
+async function run() {
+  console.log(&quot;A&quot;);
+  const { data: rows, error } = await fakeDb.select();   // 답 올 때까지 여기서 기다림
+  console.log(&quot;B&quot;, rows.length, error);
+}
+run();
+console.log(&quot;C&quot;);</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+
+<h3>5-3. syncNow()의 순서 — 지우기 → 올리기 → 받기</h3>
+<div class="code"><div class="code-head">sync.js (뼈대만)</div><pre><code>async function syncNow() {
+  if (!account.user || account.busy || !navigator.onLine) return;  // 로그인 X · 이미 하는 중 · 인터넷 X → 안 함
+  try {
+    // ① 폰에서 지운 운동 → 인터넷에서도 지우기        (data.deleted)
+    // ② 아직 안 올린 운동 올리기                     (synced: false인 것, 하나 올릴 때마다 synced = true; save())
+    // ③ 내가 만든 종목 올리기                        (customDirty)
+    // ④ 체중 · 식사 · 식단 설정 (syncNutrition)       (synced: false · nutrition.dirty)
+    // ⑤ 숨긴 그래프 목록 (syncAppSettings)            (hiddenDirty)
+    // ⑥ 받기 (downloadAll) — 다른 기기에서 한 것 가져오기
+  } catch (error) {
+    account.status = `동기화 실패 — 다음에 다시 시도해요 (…)`;  // 표시가 그대로 남아 있으니 다음에 다시
+  }
+}</code></pre></div>
+<table class=""><thead><tr><th>"아직 안 올림" 표시</th><th>붙는 곳</th><th>모양</th></tr></thead><tbody><tr><td><code>synced: false</code></td><td>운동 하나, 체중 하루, 식사 하나 <b>마다</b></td><td>여러 개 → 바뀐 것만 골라 올리고, 끊기면 이어서</td></tr><tr><td><code>customDirty</code></td><td>내 종목 목록 전체</td><td>통째로 하나 → 표시 하나</td></tr><tr><td><code>nutrition.dirty</code></td><td>식단 설정 (비율 · 속도)</td><td>통째로 하나</td></tr><tr><td><code>hiddenDirty</code></td><td>숨긴 그래프 목록</td><td>통째로 하나</td></tr></tbody></table>
+<p><b>올리기를 먼저, 받기를 나중에</b> 하는 이유: 받기는 "인터넷에 없는데 폰에 '올라간 것'으로 표시된 건 다른 기기에서 지운 것"이라고 보고 지워. 순서가 반대면 방금 만든 기록을 지운 걸로 착각할 수 있어. 그래서 방금 올린 건 <code>justUploaded</code>로 한 번 더 보호해.</p>
+
+<h3>5-4. 서비스 워커 (sw.js) — "왜 새 버전은 두 번 열어야 보여?"</h3>
+<div class="flow">
+  <div class="box">앱 열기 → 폰에 <b>보관된 파일</b>로 바로 보여 줌 (빠름, 인터넷 없어도 됨)</div><div class="arrow">↓ 동시에</div>
+  <div class="box">뒤에서 인터넷의 <b>새 파일</b>을 받아 보관함에 갈아 둠</div><div class="arrow">↓</div>
+  <div class="box">다음에 열 때 새 파일이 보임. 단, <code>APP_VERSION</code>과 sw.js의 <code>CACHE</code> 이름을 같이 올리면 새 서비스 워커가 설치되면서 <b>자동 새로 고침</b></div>
+</div>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q5-1</b> 실행 셀 5-1의 ①~③을 예상해 봐. ②는 왜 83.7이 아닐까? 앱에서 이걸 어떻게 막고 있지?<div class="blank"></div></li><li><b class="qn">Q5-2</b> 실행 셀 5-2의 출력 순서를 예상해 봐. 왜 "C"가 "B"보다 먼저일까?<div class="blank"></div></li><li><b class="qn">Q5-3</b> 인터넷이 안 되는 곳에서 운동을 끝냈어. 다음 날 인터넷 되는 곳에서 앱을 열면 그 운동은 어떻게 될까? 어떤 표시 덕분이야?<div class="blank"></div></li><li><b class="qn">Q5-4</b> sync.js에서 <code>const {{ data: rows, error }} = …</code>처럼 <b>data를 rows로 이름을 바꿔</b> 꺼내는 이유는? (힌트: app.js에서 <code>data</code>는 이미 무엇의 이름이지?)<div class="blank"></div></li><li><b class="qn">Q5-5</b> 운동을 하나 올릴 때마다 <code>w.synced = true; save();</code>를 바로 하는 이유는? (10개 올리다 5번째에서 인터넷이 끊기면?)<div class="blank"></div></li><li><b class="qn">Q5-6</b> 코드를 고쳐서 올렸는데 <code>APP_VERSION</code>과 <code>CACHE</code>를 안 올렸어. 폰에서는 언제 새 버전이 보일까?<div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s6">
+  <h2><span class="num">6</span>핵심 규칙 3개 — 손으로 따라가기<span class="time">15분</span></h2>
+  <p class="goal">🎯 앱이 내놓는 숫자를 내가 손으로 계산해서 맞혀 보기 (현미경 바닥선)</p>
+  
+<h3>6-1. 다음 무게 — nextWeight (노트북 ⑧)</h3>
+<p>규칙 순서가 곧 우선순위야. <b>위에서부터 처음 맞는 줄에서 return → 함수 끝.</b> 거짓이면 다음 줄로.</p>
+
+<div class="cell" data-id="6-1">
+  <div class="cell-head"><span>실행 셀 6-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>function nextWeight(weight, reps, low, high, step, rpe) {
+  if (weight === 0) return { weight: 0, reason: &quot;맨몸 → 1회씩 더&quot; };
+  if (Math.min(...reps) &gt;= high &amp;&amp; rpe === 10) return { weight, reason: &quot;굳히기&quot; };
+  if (Math.min(...reps) &gt;= high) return { weight: weight + step, reason: &quot;증량&quot; };
+  if (Math.max(...reps) &lt; low) return { weight: Math.max(weight - step, 0), reason: &quot;감량&quot; };
+  return { weight, reason: &quot;같은 무게&quot; };
+}
+// Bench press: 범위 6~8, 증량 5
+console.log(nextWeight(85, [8, 8, 8, 8], 6, 8, 5, 9));      // ①
+console.log(nextWeight(85, [8, 8, 8, 8], 6, 8, 5, 10));     // ②
+console.log(nextWeight(85, [8, 7, 6], 6, 8, 5, null));      // ③
+console.log(nextWeight(85, [5, 5, 4], 6, 8, 5, null));      // ④</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+
+<h3>6-2. 유지 칼로리 · 추천 섭취 — maintenanceInfo · targetKcal (노트북 ④ · ⑤)</h3>
+<div class="code"><div class="code-head">nutrition.js의 식 (말로)</div><pre><code>유지 칼로리 = 평균 섭취 − (하루 체중 변화 × 7700)            ← 최근 14일, 체중 10일 · 식사 7일(오늘 제외) 이상일 때
+추천 섭취   = 유지 + 목표 kg/주 × 7700 ÷ 7  → 10kcal 단위 반올림</code></pre></div>
+<div class="code"><div class="code-head">nutrition.js (줄임)</div><pre><code>const kdays = [...].filter(d =&gt; d &gt; start &amp;&amp; d &lt; today);         // 먹은 날 (오늘 빼고 — 하루가 안 끝났으니)
+const meanKcal = kdays.reduce((s, d) =&gt; s + dayTotals(d).kcal, 0) / kdays.length;
+return { maintenance: meanKcal - perDay * KCAL_PER_KG, … };
+
+function targetKcal(maintenance) {
+  return Math.round((maintenance + nutritionSettings().kgPerWeek * KCAL_PER_KG / 7) / 10) * 10;
+}</code></pre></div>
+
+<h3>6-3. 운동 그래프의 점 — progressSeries</h3>
+<p>그날 그 종목의 <b>가장 무거운 무게</b>가 점 하나 (같은 무게면 횟수가 많은 세트). e1RM은 그날 세트 중 가장 높은 값을 그래프 아래 숫자로.</p>
+
+<div class="cell" data-id="6-3">
+  <div class="cell-head"><span>실행 셀 6-3</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const round1 = x =&gt; Math.round(x * 10) / 10;
+const e1rm = (w, r) =&gt; round1(w * (1 + r / 30));
+const sets = [{ w: 85, r: 8 }, { w: 85, r: 9 }, { w: 80, r: 10 }];   // 그날 Bench press
+
+let top = null, best = 0;
+for (const s of sets) {
+  if (!top || s.w &gt; top.w || (s.w === top.w &amp;&amp; s.r &gt; top.r)) top = s;   // 그날 그래프 점
+  best = Math.max(best, e1rm(s.w, s.r));                                // 그래프 아래 e1RM
+}
+console.log(sets.map(s =&gt; e1rm(s.w, s.r)));   // ① 세트마다 e1RM
+console.log(top, best);                        // ② 점과 e1RM</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q6-1</b> 실행 셀 6-1의 ①~④를 예상해 봐. (Bench press 범위 6~8, 증량 5)<div class="blank"></div></li><li><b class="qn">Q6-2</b> 최근 14일 평균 섭취 2,200kcal, 체중이 하루에 −0.05kg씩 줄었어. 유지 칼로리는? 목표가 주당 −0.5kg이면 추천 섭취는? (계산 과정도)<div class="blank"></div></li><li><b class="qn">Q6-3</b> Q6-2에서 체중이 오히려 하루 +0.05kg씩 늘었다면 유지 칼로리는 2,200보다 클까 작을까?<div class="blank"></div></li><li><b class="qn">Q6-4</b> 실행 셀 6-3의 ①, ②를 예상해 봐. 그래프의 점은 몇 kg이고, 그 아래 e1RM은 몇 kg으로 나올까?<div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s7">
+  <h2><span class="num">7</span>고칠 곳 찾기 — "내 손으로 1줄" 연습<span class="time">15분</span></h2>
+  <p class="goal">🎯 바꾸고 싶은 게 생기면 파일과 이름을 바로 찾기 (코드를 몰라도 설정은 고칠 수 있게)</p>
+  
+<p>앱은 노트북 ②처럼 <b>바꿀 만한 숫자를 파일 맨 위 이름(설정)</b>으로 빼 뒀어. 대부분은 그 한 줄만 고치면 돼.</p>
+<table class=""><thead><tr><th>파일</th><th>맨 위 설정들</th></tr></thead><tbody><tr><td><code>app.js</code></td><td>APP_VERSION · RPE_CHOICES · PART_ORDER · STEP_CHOICES</td></tr><tr><td><code>exercises.js</code></td><td>EXERCISES (종목마다 part · range · step)</td></tr><tr><td><code>nutrition.js</code></td><td>DEFAULT_RATIO · RATIO_PRESETS · DEFAULT_KG_PER_WEEK · SPEED_CHOICES · INITIAL_MAINTENANCE · WINDOW_DAYS · MIN_WEIGHT_DAYS · MIN_KCAL_DAYS · KCAL_PER_KG · CHART_DAYS · MEAL_SLOTS</td></tr><tr><td><code>progress.js</code></td><td>GRAPH_MIN_RECORDS · e1rm</td></tr><tr><td><code>sw.js</code></td><td>CACHE</td></tr></tbody></table>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q7-1</b> 체중 그래프를 최근 60일로 → 어느 파일의 무엇?<div class="blank"></div></li><li><b class="qn">Q7-2</b> 유지 칼로리를 최근 21일로 계산 → ?<div class="blank"></div></li><li><b class="qn">Q7-3</b> 기록이 쌓이기 전 유지 칼로리를 2,600으로 → ?<div class="blank"></div></li><li><b class="qn">Q7-4</b> RPE 버튼에 6도 넣기 → ?<div class="blank"></div></li><li><b class="qn">Q7-5</b> 새 종목 증량 단위 후보에 1.25kg 넣기 → ?<div class="blank"></div></li><li><b class="qn">Q7-6</b> Bench press 반복 범위를 5~7로 → ?<div class="blank"></div></li><li><b class="qn">Q7-7</b> 탄단지 목표 버튼에 6:2:2 넣기 → ? (값은 어떻게 적어야 할까?)<div class="blank"></div></li><li><b class="qn">Q7-8</b> 목표 속도 버튼에 −0.4kg 넣기 → ?<div class="blank"></div></li><li><b class="qn">Q7-9</b> 기록이 2번 이상인 종목만 그래프 목록에 → ?<div class="blank"></div></li><li><b class="qn">Q7-10</b> 버튼 파란색 바꾸기 → ?<div class="blank"></div></li><li><b class="qn">Q7-11</b> ⚠️ 판단 문제: 끼니에 "운동 후"를 추가하려고 <code>MEAL_SLOTS</code>에 <code>"운동 후"</code>를 넣었어. 폰 화면에는 잘 나오는데, 무엇이 실패할까? (힌트: Supabase 표를 만들 때 meals 표의 slot 칸에 무슨 규칙을 걸었지?)<div class="blank"></div></li><li><b class="qn">Q7-12</b> 어떤 설정이든 고쳐서 올린 뒤에 같이 해 주면 좋은 것 2가지는?<div class="blank"></div></li></ol></div>
+
+</section>
+<section class="sec" id="s8">
+  <h2><span class="num">8</span>조용한 버그 도감 + 말로 설명하기<span class="time">10분</span></h2>
+  <p class="goal">🎯 "에러가 안 났으니 맞다"가 아니라는 감각 + 오늘 전체를 내 말로</p>
+  
+<p>에러는 눈에 보여서 오히려 찾기 쉬워. 위험한 건 <b>에러 없이 조용히 틀리는 것</b>이야. 지금까지 우리가 만난 것들:</p>
+<table class="bugs"><thead><tr><th>상황</th><th>에러?</th><th>결과</th><th>막는 법</th></tr></thead><tbody><tr><td>사전을 그대로 <code>localStorage.setItem</code></td><td>없음</td><td><code>"[object Object]"</code>로 저장 → 기록 망가짐</td><td><code>JSON.stringify</code></td></tr><tr><td><code>reduce</code>에 <code>, 0</code> 빠짐</td><td>없음</td><td><code>"10-081130"</code> 글자 이어 붙이기</td><td>시작값 <code>, 0</code></td></tr><tr><td><code>map</code> 뒤 <code>join("")</code> 빠짐</td><td>없음</td><td>버튼 사이에 쉼표 <code>,</code></td><td><code>.join("")</code></td></tr><tr><td>사용자 글자를 그대로 HTML에</td><td>없음</td><td>글자가 HTML로 해석됨</td><td><code>escapeHtml</code></td></tr><tr><td>빈 목록 <code>[]</code>를 if로 검사</td><td>없음</td><td>JS에서는 <b>참</b></td><td><code>.length</code></td></tr><tr><td><code>83.6 + 0.1</code></td><td>없음</td><td><code>83.69999999999999</code></td><td><code>round1</code></td></tr><tr><td><code>0 || 70</code></td><td>없음</td><td>0인데 70이 됨</td><td><code>??</code></td></tr><tr><td>오늘 칼로리를 평균에 포함</td><td>없음</td><td>평균 ↓ → 유지 칼로리 ↓</td><td><code>d &lt; today</code></td></tr><tr><td>dirty 표시 없이 동기화</td><td>없음</td><td>폰에서 바꾼 게 인터넷 것에 덮여 사라짐</td><td><code>hiddenDirty = true</code></td></tr><tr><td>스크립트 순서가 틀림</td><td>없음</td><td>체중 · 식사가 안 올라감</td><td>index.html 순서 + <code>typeof … === "function"</code></td></tr></tbody></table>
+<h3>마지막: 말로 설명하기 (종이에 3~5줄씩)</h3>
+<ol class="explain">
+  <li><b>세트 완료 버튼</b>을 눌렀을 때부터 그 세트가 <b>Supabase의 sets 표</b>에 들어갈 때까지. (힌트 단어: data-action · completeSet · save · render · finishWorkout · syncNow · synced · uploadWorkout)</li>
+  <li><b>유지 칼로리</b>가 "초기값 2,750"에서 "내 기록으로 계산"으로 바뀌는 조건과 계산식.</li>
+  <li>GitHub에 코드를 고쳐 올린 뒤 <b>폰에 새 버전이 보이기까지</b>. (힌트: Vercel · sw.js · CACHE · 두 번 열기)</li>
+</ol>
+<p>세 개 다 막힘없이 쓰면 오늘 복습 목표 달성이야. 막힌 단어가 있으면 그 장을 다시 보고, 다음에 같이 이야기하자.</p>
+
+</section>
+
+<section class="sec answers" id="answers">
+  <h2><span class="num">✓</span>정답</h2>
+  <p class="small">출력 모양: 문자열 목록은 <code>['a', 'b']</code>, 사전은 <code>{ w: 80, r: 10 }</code>로 적었어. 크롬 콘솔은 <code>(2) ['a', 'b']</code>, <code>{w: 80, r: 10}</code>처럼 조금 다르게 보일 수 있어.</p>
+  <div class="ans"><b class="qn">Q1-1</b><div>(가) data (나) ui (다) ui (라) data</div></div><div class="ans"><b class="qn">Q1-2</b><div>(나) 탭과 (다) 펼친 그래프 — ui는 저장하지 않아서 처음 상태(식단 탭, 다 접힘)로 돌아가.</div></div><div class="ans"><b class="qn">Q1-3</b><div>(가) progress.js (나) sync.js의 authError (다) exercises.js의 EXERCISES (라) style.css의 --accent</div></div><div class="ans"><b class="qn">Q2-1</b><div><pre>[8, 7, 10]
+2
+{ w: 80, r: 10 }
+true false
+85</pre>④ 7회짜리가 있어서 some(r &lt; 8)은 true, 그래서 every(r ≥ 8)은 false. ⑤ <code>...</code> 없이 <code>Math.max(list)</code>면 NaN. (크롬 콘솔에서는 <code>(3) [8, 7, 10]</code>처럼 개수가 앞에 붙어 보일 수 있어)</div></div><div class="ans"><b class="qn">Q2-2</b><div><pre>['10-08', '10-09']
+10-08=2200, 10-09=1130
+3330
+10-081130
+['Dips', 'Pull up']</pre>④ 시작값이 없으면 <b>첫 칸</b>(<code>"10-08"</code>, 날짜 글자)이 시작값이 돼. 글자 + 숫자 = 글자 이어 붙이기 → <code>"10-08" + 1130</code>. 첫 칸 자리의 2200은 아예 더해지지도 않아.</div></div><div class="ans"><b class="qn">Q2-3</b><div><pre>['deleted', 'body', 'workouts', 'custom'] { A: 1 }
+30
+70 0 70
+null</pre>① 순서는 처음 나온 자리대로, custom은 <b>마지막에 쓴 { A: 1 }</b>이 이김. ③ <code>??</code>는 null/undefined일 때만 바꾸고, <code>||</code>는 0 · "" 같은 <b>거짓 값</b>이면 다 바꿔. 그래서 0이 의미 있는 값일 땐 <code>??</code>. ④ <code>rec</code>이 null이면 <code>&&</code> 뒤는 보지도 않고 null (에러 안 남).</div></div><div class="ans"><b class="qn">Q2-4</b><div><pre>거짓 거짓 거짓
+참 참 참
+거짓</pre>② JS에서는 <b>빈 목록 [], 빈 사전 {}도 참</b>이야 (Python과 반대). "0"은 글자라서 참. ③ <code>[].length</code>는 0 → 거짓. 그래서 빈지 볼 때는 <code>!items.length</code>.</div></div><div class="ans"><b class="qn">Q2-5</b><div><code>top = max([s["w"] for s in sets if s["r"] &gt;= 8])</code></div></div><div class="ans"><b class="qn">Q3-1</b><div><pre>2
+&lt;button …&gt;등 26세트&lt;/button&gt;&lt;button …&gt;가슴 44세트&lt;/button&gt;
+&lt;main&gt;&lt;button …&gt;등 26세트&lt;/button&gt;,&lt;button …&gt;가슴 44세트&lt;/button&gt;&lt;/main&gt;</pre>① map은 <b>목록</b>(글자 2개짜리)을 돌려줘. ③ 목록을 글자 안에 바로 넣으면 쉼표로 이어져서, 화면에 버튼 사이 <b>쉼표 ,</b>가 보여.</div></div><div class="ans"><b class="qn">Q3-2</b><div><pre>&lt;b&gt;&lt;i&gt;닭&lt;/i&gt; 가슴살&lt;/b&gt;
+&lt;b&gt;&amp;lt;i&amp;gt;닭&amp;lt;/i&amp;gt; 가슴살&lt;/b&gt;</pre>화면에서 ①은 <b><i>닭</i> 가슴살</b>(닭이 기울어짐 — HTML로 해석), ②는 <b>&lt;i&gt;닭&lt;/i&gt; 가슴살</b>이 글자 그대로 보여.</div></div><div class="ans"><b class="qn">Q3-3</b><div><code>nutritionView()</code> — nutrition.js에 있어. (render는 app.js에 있지만 다른 파일의 화면 함수를 이름으로 불러)</div></div><div class="ans"><b class="qn">Q3-4</b><div>에러는 안 나. 앱을 열자마자 하는 동기화 때 <code>syncNutrition</code>이 아직 없어서 <code>typeof … === "function"</code>이 거짓 → 체중 · 식사 · 식단 설정을 <b>건너뜀</b>. 조용히 안 올라가는 버그 (실제로 있었던 일).</div></div><div class="ans"><b class="qn">Q3-5</b><div>3군데: 라이트 모드 <code>:root</code>, 폰이 다크 모드일 때(<code>@media</code>), 다크로 고정했을 때(<code>[data-theme="dark"]</code>). 라이트만 바꾸면 다크 모드에서는 여전히 파랑.</div></div><div class="ans"><b class="qn">Q4-1</b><div><code>completeSet(1)</code>. <code>el.dataset.i</code>는 글자 <code>"1"</code>이라서, Number가 없으면 <code>completeSet("1")</code> → 안에서 <code>current().exercises["1"]</code>은 우연히 동작하지만, <code>ui.edit.ex === i</code> 같은 비교(<code>1 === "1"</code>은 false)에서 틀려. 그래서 처음부터 숫자로 바꿔 둬.</div></div><div class="ans"><b class="qn">Q4-2</b><div>① click 리스너가 <code>data-action="start"</code>, <code>data-split="가슴"</code>을 읽어 <code>startWorkout("가슴")</code> 호출 ② data.workouts에 새 운동 추가 + currentId ③ <code>save()</code> ④ ui.screen = "workout" 후 <code>render()</code> → <code>views["workout"]</code> = <b>workoutView()</b></div></div><div class="ans"><b class="qn">Q4-3</b><div>아무 일도 없어. <code>switch</code>에 맞는 case가 없으니 그냥 끝나. 리스너는 여러 개여도 각자 자기 이름만 처리해.</div></div><div class="ans"><b class="qn">Q4-4</b><div>#app 안이 통째로 새로 그려져서 입력 칸도 새로 생김 → "닭가"가 <b>사라져</b>. 그래서 식사 칸이 열려 있으면 안 그리게 막아 둔 것.</div></div><div class="ans"><b class="qn">Q5-1</b><div><pre>string {"body":{"2026-10-09":{"w":83.6}}}
+83.69999999999999
+83.7</pre>컴퓨터는 0.1 같은 소수를 2진수로 정확히 못 담아서 아주 작은 오차가 생겨. 앱은 <code>round1</code>(× 10 → 반올림 → ÷ 10)으로 소수 첫째 자리에 맞춰.</div></div><div class="ans"><b class="qn">Q5-2</b><div><pre>A
+C
+B 2 null</pre><code>await</code>는 <b>run 함수만</b> 멈추고, 함수 밖의 코드(C)는 계속 진행돼. 0.3초 뒤 답이 오면 B. 앱에서 동기화하는 동안에도 화면을 계속 쓸 수 있는 이유.</div></div><div class="ans"><b class="qn">Q5-3</b><div>운동에 <code>synced: false</code>가 남아 있어서, 앱을 열 때 하는 <code>syncNow()</code>가 그 운동을 올려. 기록은 항상 폰에 먼저 저장되니까 사라지지 않아.</div></div><div class="ans"><b class="qn">Q5-4</b><div>app.js의 전역 이름 <code>data</code>가 이미 "앱의 모든 기록"이야. 꺼낸 걸 그대로 <code>data</code>라고 부르면 헷갈리거나 덮어쓸 위험 → <code>rows</code>로 바꿔서 꺼냄.</div></div><div class="ans"><b class="qn">Q5-5</b><div>5번째에서 끊기면 1~4번은 이미 <code>synced = true</code>로 저장돼 있어서, 다음에 5번부터 <b>이어서</b> 올려. 끝에 한 번만 저장하면 1~4번을 또 올리게 돼.</div></div><div class="ans"><b class="qn">Q5-6</b><div>자동 새로 고침이 없어. 첫 번째로 열 때는 보관된 옛 파일, 그사이 뒤에서 새 파일을 받아 두고 → <b>두 번째로 열 때</b> 새 버전.</div></div><div class="ans"><b class="qn">Q6-1</b><div><pre>{ weight: 90, reason: '증량' }
+{ weight: 85, reason: '굳히기' }
+{ weight: 85, reason: '같은 무게' }
+{ weight: 80, reason: '감량' }</pre>① 다 8회(최대) + RPE 9 → +5 ② 다 8회지만 RPE 10 → 굳히기(두 번째 줄이 먼저 걸림) ③ 최소 6 &lt; 8, 최대 8 ≥ 6 → 같은 무게 ④ 최대 5 &lt; 6 → −5</div></div><div class="ans"><b class="qn">Q6-2</b><div>유지 = 2,200 − (−0.05 × 7,700) = 2,200 + 385 = <b>2,585kcal</b>. 추천 = 2,585 + (−0.5 × 7,700 ÷ 7) = 2,585 − 550 = 2,035 → 10kcal 반올림 <b>2,040kcal</b>.</div></div><div class="ans"><b class="qn">Q6-3</b><div><b>작아</b> (2,200 − 385 = 1,815). 2,200을 먹었는데 체중이 늘었으면 몸이 쓰는 건 그보다 적다는 뜻.</div></div><div class="ans"><b class="qn">Q6-4</b><div><pre>[107.7, 110.5, 106.7]
+{ w: 85, r: 9 } 110.5</pre>점 = <b>85kg</b> (85kg 세트가 둘인데 횟수가 많은 85×9), 아래 e1RM = <b>110.5kg</b> (85 × (1 + 9/30) = 85 × 1.3).</div></div><div class="ans"><b class="qn">Q7-1</b><div>nutrition.js <code>CHART_DAYS = 60</code></div></div><div class="ans"><b class="qn">Q7-2</b><div>nutrition.js <code>WINDOW_DAYS = 21</code></div></div><div class="ans"><b class="qn">Q7-3</b><div>nutrition.js <code>INITIAL_MAINTENANCE = 2600</code></div></div><div class="ans"><b class="qn">Q7-4</b><div>app.js <code>RPE_CHOICES = [6, 7, 8, 9, 10]</code></div></div><div class="ans"><b class="qn">Q7-5</b><div>app.js <code>STEP_CHOICES = [1, 1.25, 2, 2.5, 4, 5]</code></div></div><div class="ans"><b class="qn">Q7-6</b><div>exercises.js <code>"Bench press": { part: "가슴", range: [5, 7], step: 5 }</code> (노트북 ②도 같이)</div></div><div class="ans"><b class="qn">Q7-7</b><div>nutrition.js <code>RATIO_PRESETS = [[50, 30, 20], [40, 30, 30], [60, 20, 20]]</code> — 비율은 <b>%로, 합이 100</b>이 되게.</div></div><div class="ans"><b class="qn">Q7-8</b><div>nutrition.js <code>SPEED_CHOICES</code>에 <code>-0.4</code> 넣기 (순서 맞춰서)</div></div><div class="ans"><b class="qn">Q7-9</b><div>progress.js <code>GRAPH_MIN_RECORDS = 2</code></div></div><div class="ans"><b class="qn">Q7-10</b><div>style.css <code>--accent</code> 3군데 (Q3-5)</div></div><div class="ans"><b class="qn">Q7-11</b><div><b>동기화</b>가 실패해. meals 표에 <code>check (slot in ('아침', '점심', '저녁', '간식'))</code> 규칙이 있어서 "운동 후" 식사는 Supabase가 거절 → "동기화 실패". 화면 설정(MEAL_SLOTS)과 <b>인터넷 표 규칙(migration)</b>을 같이 바꿔야 해. 이런 건 혼자 1줄로 고치기보다 나랑 같이.</div></div><div class="ans"><b class="qn">Q7-12</b><div>① app.js <code>APP_VERSION</code>과 sw.js <code>CACHE</code> 이름 올리기 (폰이 바로 새로 고침) ② 폰에서 홈 맨 아래 버전 번호로 확인. (노트북 규칙과 연결된 값이면 노트북도 같이)</div></div>
+</section>
+<p class="small" style="text-align:center;margin-top:24px">막힌 곳(☆)은 다음 세션에 가져와. 거기서부터 같이 보자.</p>
+</main>
+<script>
+// ▶ 실행: 셀의 코드를 이 페이지 안에서 돌리고 console.log를 아래 칸에 보여 줌 (인터넷 필요 없음)
+function fmt(v, inner) {
+  if (typeof v === "string") return inner ? "'" + v + "'" : v;
+  if (v === null) return "null";
+  if (v === undefined) return "undefined";
+  if (Array.isArray(v)) return "[" + v.map(x => fmt(x, true)).join(", ") + "]";
+  if (typeof v === "object") {
+    const keys = Object.keys(v);
+    return keys.length ? "{ " + keys.map(k => (/^[A-Za-z_$][\w$]*$/.test(k) ? k : "'" + k + "'") + ": " + fmt(v[k], true)).join(", ") + " }" : "{}";
+  }
+  return String(v);
+}
+document.querySelectorAll(".cell").forEach(cell => {
+  const button = cell.querySelector(".run");
+  const out = cell.querySelector(".out");
+  const source = cell.querySelector("pre code").textContent;
+  button.addEventListener("click", () => {
+    out.hidden = false;
+    out.textContent = "";
+    const con = { log: (...args) => { out.textContent += args.map(a => fmt(a)).join(" ") + "\n"; } };
+    try { new Function("console", source)(con); }
+    catch (e) { out.textContent += "에러: " + e.message + "\n"; }
+  });
+});
+</script>
+</body>
+</html>
