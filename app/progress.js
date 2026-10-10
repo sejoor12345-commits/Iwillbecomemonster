@@ -2,19 +2,22 @@
 //
 // [지도]
 //   들어오는 것: 끝난 운동들 (data.workouts)
-//   하는 일:     노트북 ④ · ⑥을 JS로 — 세트마다 e1RM, (분할, 종목, 날짜)마다 그날 가장 높은 세트 하나 = 점 하나
-//                맨몸 운동은 e1RM 대신 그날 최고 횟수
-//   나가는 것:   분할별 종목 목록 (첫 기록 → 최근, 변화) + 누르면 그 종목 그래프 (가로 = 날짜)
+//   하는 일:     (분할, 종목, 날짜)마다 점 하나 = 그날 가장 무거운 무게 (맨몸은 그날 최고 횟수)
+//                + 노트북 ④ · ⑥의 e1RM(추정 1회 최대)은 그래프 아래에 숫자로만
+//   나가는 것:   분할별 종목 목록 (첫 기록 → 최근) + 누르면 그 종목 그래프 (가로 = 날짜) · 목록에서 숨기기
+//
+// [저장] data.hiddenGraphs: ["어깨|Bench lateral raise", …]  ← 목록에서 숨긴 종목 (이 폰에만 저장)
 
 const GRAPH_MIN_RECORDS = 1;                     // 목록에 보여 줄 최소 기록 횟수 (2로 바꾸면 선이 있는 종목만 나옴)
 const e1rm = (w, r) => round1(w * (1 + r / 30)); // Epley 공식, 소수 첫째 자리 — 노트북 ④와 같은 식
 
 ui.graphOpen = null;                             // 펼쳐진 그래프 ("가슴|Bench press")
+ui.showHidden = false;                           // 숨긴 종목 목록을 펼쳤나
 
 
 // ---------- 1. 계산 ----------
 
-// (분할, 종목) → [{ day: "2026-10-05", v: 그날 최고 e1RM(또는 횟수), set: { w, r } }, …] 오래된 순
+// (분할, 종목) → 날짜마다 { day, v: 그날 가장 무거운 무게(맨몸은 최고 횟수), set: 그 세트, e1rm: 그날 최고 e1RM } 오래된 순
 function progressSeries(split, name) {
   const bw = isBodyweight(name);
   const byDay = {};
@@ -23,13 +26,17 @@ function progressSeries(split, name) {
     const sets = w.exercises.filter(e => e.name === name).flatMap(e => e.sets);
     if (!sets.length) continue;
     const day = isoDay(new Date(w.start));
+    const p = byDay[day] || (byDay[day] = { day, v: -1, set: null, e1rm: 0 });
     for (const s of sets) {
-      const v = bw ? s.r : e1rm(s.w, s.r);
-      if (!byDay[day] || v > byDay[day].v) byDay[day] = { day, v, set: s };
+      const v = bw ? s.r : s.w;
+      if (v > p.v || (v === p.v && s.r > p.set.r)) { p.v = v; p.set = s; }   // 같은 무게면 횟수가 많은 세트
+      if (!bw) p.e1rm = Math.max(p.e1rm, e1rm(s.w, s.r));
     }
   }
   return Object.keys(byDay).sort().map(d => byDay[d]);
 }
+
+const isHidden = key => data.hiddenGraphs.includes(key);
 
 
 // ---------- 2. 화면 ----------
@@ -40,6 +47,7 @@ function progressView() {
   const sections = DAYS.map(split => {
     const names = [...new Set(done.filter(w => w.split === split)
       .flatMap(w => w.exercises.filter(e => e.sets.length).map(e => e.name)))]
+      .filter(name => !isHidden(`${split}|${name}`))
       .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
     const rows = names.map(name => ({ name, pts: progressSeries(split, name) }))
       .filter(r => r.pts.length >= GRAPH_MIN_RECORDS);
@@ -47,25 +55,52 @@ function progressView() {
     return `<h2>${split}</h2><section class="card plist">${rows.map(r => progressRow(split, r)).join("")}</section>`;
   }).join("");
   return `
-    ${sections || `<p class="muted">기록이 ${GRAPH_MIN_RECORDS}번 이상인 종목이 아직 없어요.</p>`}
-    <p class="muted small">점 하나 = 그날 가장 높은 세트의 e1RM (무게 × (1 + 횟수/30)). 같은 분할끼리만 이어요. 종목을 누르면 그래프가 열려요.</p>`;
+    ${sections || `<p class="muted">보여 줄 종목이 없어요.</p>`}
+    ${hiddenList()}
+    <p class="muted small">점 하나 = 그날 가장 무거운 무게 (맨몸 운동은 그날 최고 횟수). 같은 분할끼리만 이어요. 종목을 누르면 그래프가 열려요.</p>`;
+}
+
+function hiddenList() {
+  if (!data.hiddenGraphs.length) return "";
+  const rows = !ui.showHidden ? "" : `
+      <section class="card plist">${data.hiddenGraphs.map(key => {
+        const [split, name] = key.split("|");
+        return `<div class="hrow"><span>${escapeHtml(name)} <span class="muted small">${split}</span></span>
+          <button class="link small" data-action="graph-unhide" data-key="${escapeHtml(key)}">다시 보이기</button></div>`;
+      }).join("")}</section>`;
+  return `
+    <button class="link small" data-action="graph-show-hidden">숨긴 종목 ${data.hiddenGraphs.length}개 ${ui.showHidden ? "▴" : "▾"}</button>
+    ${rows}`;
 }
 
 function progressRow(split, { name, pts }) {
   const bw = isBodyweight(name);
   const key = `${split}|${name}`;
   const first = pts[0], last = pts[pts.length - 1];
-  const fmt = v => bw ? `${v}회` : `${v.toFixed(1)}kg`;
-  const values = pts.length < 2 ? fmt(last.v) : `${fmt(first.v)} → ${fmt(last.v)}`;
-  const change = pts.length < 2 ? `<span class="muted">기록 1회</span>`
-    : `<b>${bw ? signed(last.v - first.v) + "회" : signed(round1((last.v / first.v - 1) * 100)) + "%"}</b>`;
+  const unit = bw ? "회" : "kg";
+  const values = pts.length < 2 ? `${num(last.v)}${unit}` : `${num(first.v)}${unit} → ${num(last.v)}${unit}`;
+  const change = pts.length < 2 ? `<span class="muted">기록 1회</span>` : `<b>${signed(last.v - first.v)}${unit}</b>`;
   const open = ui.graphOpen === key;
   return `
     <button class="prow ${open ? "open" : ""}" data-action="graph-open" data-key="${escapeHtml(key)}">
       <span class="pname"><b>${escapeHtml(name)}</b>${bw ? `<span class="badge">맨몸 · 최고 횟수</span>` : ""}</span>
       <span class="pval small">${values} · ${change}</span>
     </button>
-    ${open ? progressChart(name, pts, bw) : ""}`;
+    ${open ? progressChart(name, pts, bw) + progressDetail(key, pts, bw) : ""}`;
+}
+
+// 그래프 아래: e1RM 숫자 한 줄 + 설명 + 숨기기
+function progressDetail(key, pts, bw) {
+  const first = pts[0], last = pts[pts.length - 1];
+  const e1rmLine = bw ? "" : `
+      <p class="e1rm"><b>e1RM: ${last.e1rm.toFixed(1)}kg</b>${pts.length > 1
+        ? ` <span class="muted small">(첫 기록 ${first.e1rm.toFixed(1)}kg → ${signed(round1((last.e1rm / first.e1rm - 1) * 100))}%)</span>` : ""}</p>
+      <p class="muted small">e1RM = 무게와 횟수로 계산한 "1회만 든다면 들 수 있는 무게" 추정치 (무게 × (1 + 횟수/30)). 무게가 같아도 횟수가 늘면 올라가요.</p>`;
+  return `
+    <div class="pdetail">
+      ${e1rmLine}
+      <button class="link small" data-action="graph-hide" data-key="${escapeHtml(key)}">목록에서 숨기기</button>
+    </div>`;
 }
 
 function niceStep(rough) {                       // 눈금 간격을 1 · 2 · 5 · 10 … 같은 깔끔한 수로
@@ -94,11 +129,11 @@ function progressChart(name, pts, bw) {
     `<text class="axis" x="${x(d)}" y="${H - 6}" text-anchor="middle">${dayLabel(d)}</text>`).join("");
   const path = pts.map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
   const last = pts[pts.length - 1];
-  const label = v => bw ? `${v}` : v.toFixed(1);
+  const label = v => num(v);
   const hitW = Math.max(24, pts.length > 1 ? (W - L - R) / span : 24);
   return `
     <div class="chart pchart">
-      <p class="muted small">${bw ? "그날 최고 횟수 (회)" : "그날 최고 e1RM (kg)"}</p>
+      <p class="muted small">${bw ? "그날 최고 횟수 (회)" : "그날 가장 무거운 무게 (kg)"}</p>
       <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${escapeHtml(name)} ${pts.length}회 기록, 최근 ${label(last.v)}${unit}">
         ${grid}${xTicks}
         <line id="pc-x" class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/>
@@ -106,8 +141,8 @@ function progressChart(name, pts, bw) {
         ${pts.map(p => `<circle class="avg-end" cx="${x(p.day)}" cy="${y(p.v)}" r="4"/>`).join("")}
         <text class="end-label" x="${x(last.day) + 8}" y="${y(last.v) + 4}">${label(last.v)}</text>
         ${pts.map(p => `<rect class="hit" x="${x(p.day) - hitW / 2}" y="0" width="${hitW}" height="${H}" data-cx="${x(p.day)}"
-           data-title="${dayLabel(p.day)}" data-value="${label(p.v)}${unit}" data-name="${bw ? "최고 횟수" : "e1RM"}"
-           data-set="${bw ? "" : `${num(p.set.w)}kg × ${p.set.r}회`}"/>`).join("")}
+           data-title="${dayLabel(p.day)}" data-value="${label(p.v)}${unit}" data-name="${bw ? "최고 횟수" : "최고 무게"}"
+           data-set="${bw ? "" : `${num(p.set.w)}kg × ${p.set.r}회 · e1RM ${p.e1rm.toFixed(1)}kg`}"/>`).join("")}
       </svg>
       <div id="pc-tip" class="tip" hidden></div>
     </div>`;
@@ -137,9 +172,18 @@ function showProgressTip(rect) {                 // 누른 점의 날짜 · 값 
 
 document.addEventListener("click", event => {
   const el = event.target.closest("[data-action]");
-  if (!el || el.dataset.action !== "graph-open") return;
-  ui.graphOpen = ui.graphOpen === el.dataset.key ? null : el.dataset.key;
-  render();
+  if (!el) return;
+  const key = el.dataset.key;
+  switch (el.dataset.action) {
+    case "graph-open": ui.graphOpen = ui.graphOpen === key ? null : key; return render();
+    case "graph-hide":
+      data.hiddenGraphs.push(key);
+      ui.graphOpen = null;
+      save();
+      return render();
+    case "graph-unhide": data.hiddenGraphs = data.hiddenGraphs.filter(k => k !== key); save(); return render();
+    case "graph-show-hidden": ui.showHidden = !ui.showHidden; return render();
+  }
 });
 
 document.addEventListener("pointerdown", event => {

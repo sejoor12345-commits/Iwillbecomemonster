@@ -228,3 +228,7 @@ button.full { width: 100%; margin-top: 4px; }
 .pval { color: var(--text); font-variant-numeric: tabular-nums; }
 .badge { font-size: 12px; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
 .pchart { padding: 0 0 12px; }
+.pdetail { padding: 0 0 12px; }
+.e1rm { margin: 0 0 4px; font-variant-numeric: tabular-nums; }
+.hrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+.plist > .hrow:first-child { border-top: none; }

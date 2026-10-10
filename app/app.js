@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.4-d.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-d.4";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -37,7 +37,7 @@ function load() {
 
 // 나중 버전에서 늘어난 칸들의 빈 값 (예전에 저장된 data에는 이 칸이 없음)
 function EMPTY_EXTRAS() {
-  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [] };
+  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [] };
 }
 
 // 종목 이름 바꾸기 (예전에 다른 이름으로 저장된 기록 고치기). 바뀐 운동은 다시 올리도록 synced를 끔
@@ -398,7 +398,8 @@ function restoreBackup(file) {
       if (!Array.isArray(restored.workouts)) throw new Error("모양이 달라요");
       if (!confirm(`백업의 운동 ${restored.workouts.length}개로 지금 기록을 바꿀까요?`)) return;
       data = { ...EMPTY_EXTRAS(), workouts: restored.workouts, currentId: restored.currentId || null, custom: restored.custom || {},
-               customDirty: true, body: restored.body || {}, meals: restored.meals || [], nutrition: restored.nutrition || null };
+               customDirty: true, body: restored.body || {}, meals: restored.meals || [], nutrition: restored.nutrition || null,
+               hiddenGraphs: restored.hiddenGraphs || [] };
       data.workouts.forEach(w => { w.synced = false; });           // 백업으로 바꾼 기록은 다시 올리기 (upsert라 겹치지 않음)
       Object.values(data.body).forEach(b => { b.synced = false; });
       data.meals.forEach(m => { m.synced = false; });
