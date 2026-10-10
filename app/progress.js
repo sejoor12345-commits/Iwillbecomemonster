@@ -6,7 +6,8 @@
 //                + 노트북 ④ · ⑥의 e1RM(추정 1회 최대)은 그래프 아래에 숫자로만
 //   나가는 것:   분할별 종목 목록 (첫 기록 → 최근) + 누르면 그 종목 그래프 (가로 = 날짜) · 목록에서 숨기기
 //
-// [저장] data.hiddenGraphs: ["어깨|Bench lateral raise", …]  ← 목록에서 숨긴 종목 (이 폰에만 저장)
+// [저장] data.hiddenGraphs: ["어깨|Bench lateral raise", …]  ← 목록에서 숨긴 종목
+//        data.hiddenDirty: true = 아직 인터넷(app_settings 표)에 안 올림
 
 const GRAPH_MIN_RECORDS = 1;                     // 목록에 보여 줄 최소 기록 횟수 (2로 바꾸면 선이 있는 종목만 나옴)
 const e1rm = (w, r) => round1(w * (1 + r / 30)); // Epley 공식, 소수 첫째 자리 — 노트북 ④와 같은 식
@@ -168,7 +169,34 @@ function showProgressTip(rect) {                 // 누른 점의 날짜 · 값 
 }
 
 
-// ---------- 3. 버튼 연결 ----------
+// ---------- 3. 숨긴 목록 동기화 (sync.js의 syncNow가 부름) ----------
+
+function hiddenChanged() {
+  data.hiddenDirty = true;                       // 표시: 바뀌었는데 아직 안 올림
+  save();
+  render();
+  if (typeof syncNow === "function") syncNow();
+}
+
+async function syncAppSettings() {
+  if (data.hiddenDirty) {                        // [1] 폰에서 바꿨으면 → 올리기 (덮어쓰기)
+    const { error } = await db.from("app_settings")
+      .upsert({ hidden_graphs: data.hiddenGraphs, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    data.hiddenDirty = false;
+    save();
+    return;                                      //     방금 올린 게 가장 최신이니까 받을 필요 없음
+  }
+  const { data: rows, error } = await db.from("app_settings").select("hidden_graphs");   // [2] 받기
+  if (error) throw error;
+  if (rows.length) {                             //     인터넷에 있으면 그것으로 (다른 기기에서 바꾼 것)
+    data.hiddenGraphs = rows[0].hidden_graphs || [];
+    save();
+  }
+}
+
+
+// ---------- 4. 버튼 연결 ----------
 
 document.addEventListener("click", event => {
   const el = event.target.closest("[data-action]");
@@ -179,9 +207,10 @@ document.addEventListener("click", event => {
     case "graph-hide":
       data.hiddenGraphs.push(key);
       ui.graphOpen = null;
-      save();
-      return render();
-    case "graph-unhide": data.hiddenGraphs = data.hiddenGraphs.filter(k => k !== key); save(); return render();
+      return hiddenChanged();
+    case "graph-unhide":
+      data.hiddenGraphs = data.hiddenGraphs.filter(k => k !== key);
+      return hiddenChanged();
     case "graph-show-hidden": ui.showHidden = !ui.showHidden; return render();
   }
 });

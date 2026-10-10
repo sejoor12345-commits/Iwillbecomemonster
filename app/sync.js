@@ -86,7 +86,8 @@ function authError(error) {                                       // 자주 나�
 
 function pendingCount() {                                         // 아직 안 올린 것 개수
   return finishedWorkouts().filter(w => !w.synced).length + data.deleted.length
-    + (typeof nutritionPending === "function" ? nutritionPending() : 0);   // 체중 · 식사 (nutrition.js)
+    + (typeof nutritionPending === "function" ? nutritionPending() : 0)    // 체중 · 식사 (nutrition.js)
+    + (data.hiddenDirty ? 1 : 0);                                         // 숨긴 그래프 목록 (progress.js)
 }
 
 // 운동 한 번 → 표 3개.  같은 운동을 다시 올려도 결과가 같다 (중간에 끊겨도 다음에 다시 하면 됨)
@@ -198,6 +199,7 @@ async function syncNow() {
       save();
     }
     if (typeof syncNutrition === "function") await syncNutrition();   // 체중 · 식사 · 식단 설정 (nutrition.js)
+    if (typeof syncAppSettings === "function") await syncAppSettings(); // 숨긴 그래프 목록 (progress.js)
     const { added, removed } = await downloadAll(justUploaded);   // 올린 다음에 받기
     const now = new Date();
     const changes = [added && `받아온 기록 ${added}개`, removed && `다른 기기에서 지운 기록 ${removed}개 정리`].filter(Boolean).join(", ");
