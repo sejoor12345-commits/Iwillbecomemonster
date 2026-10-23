@@ -36,6 +36,7 @@ const MIN_WEIGHT_DAYS = 10;                // 그 기간에 체중 기록이 최
 const MIN_KCAL_DAYS = 7;                   // 그 기간에 식사 기록이 최소 며칠 (오늘은 아직 덜 먹었으니 빼고 셈)
 const KCAL_PER_KG = 7700;                  // 체중 1kg ≈ 7700kcal
 const CHART_DAYS = 30;                     // 체중 그래프에 보여 줄 날 수
+const PLAN_AHEAD_DAYS = 7;                 // 식단을 며칠 뒤까지 미리 적을 수 있는지 (체중은 미래에 못 적음)
 const MEAL_SLOTS = ["아침", "점심", "저녁", "간식"];
 const MACROS = [                           // 1g당 칼로리
   { key: "c", name: "탄", kcal: 4 },
@@ -188,6 +189,7 @@ function changed() {                                           // 저장하고, 
 
 function saveWeight() {
   const day = ui.day || isoDay();
+  if (day > isoDay()) return;                                  // 미래 체중은 안 받음
   const w = round1(Number(ui.weightDraft));
   if (!(w > 20 && w < 300)) return alert("체중을 확인해 주세요.");
   data.body[day] = { w, synced: false };
@@ -300,9 +302,13 @@ function nutritionView() {
   const tab = ui.nutritionTab;
   const today = isoDay();
   const day = ui.day || today;
+  const future = day > today;
+  const label = day === today ? " (오늘)" : day === addDays(today, 1) ? " (내일)" : future ? " (예정)" : "";
   const body = tab === "food"
-    ? calorieCard(day, today) + macroCard(day, today) + mealsCard(day)
-    : weightCard(day) + weightChart(today);
+    ? (future ? `<p class="notice small">미리 적어 두는 식단이에요. 그날 실제로 다르게 먹으면 그때 고치거나 지우면 돼요.</p>` : "")
+      + calorieCard(day, today) + macroCard(day, today) + mealsCard(day)
+    : (future ? `<section class="card pad"><p class="muted small">체중은 그날 재고 적어요. 미리 적을 수 있는 건 식단뿐이에요.</p></section>`
+              : weightCard(day)) + weightChart(today);
   return `
     <header class="bar"><h1>🥗 Nutrition</h1><button class="small" data-action="home">홈</button></header>
     <div class="tabs">
@@ -312,8 +318,8 @@ function nutritionView() {
     <main>
       <div class="daynav">
         <button class="small" data-action="n-day" data-v="-1" aria-label="전날">◀</button>
-        <b>${dayLabel(day)}${day === today ? " (오늘)" : ""}</b>
-        <button class="small" data-action="n-day" data-v="1" aria-label="다음 날" ${day >= today ? "disabled" : ""}>▶</button>
+        <b>${dayLabel(day)}${label}</b>
+        <button class="small" data-action="n-day" data-v="1" aria-label="다음 날" ${day >= addDays(today, PLAN_AHEAD_DAYS) ? "disabled" : ""}>▶</button>
       </div>
       ${body}
     </main>`;
@@ -699,7 +705,8 @@ document.addEventListener("click", event => {
     case "n-tab": Object.assign(ui, { nutritionTab: v, mealForm: null, ratioPanel: false, speedPanel: false }); return render();
     case "n-day":
       Object.assign(ui, { day: addDays(ui.day || isoDay(), Number(v)), weightDraft: null, mealForm: null, ratioPanel: false });
-      if (ui.day >= isoDay()) ui.day = null;
+      if (ui.day === isoDay()) ui.day = null;                     // 오늘 = null
+      if (ui.day && ui.day > addDays(isoDay(), PLAN_AHEAD_DAYS)) ui.day = addDays(isoDay(), PLAN_AHEAD_DAYS);
       return render();
     case "n-w-step": {
       const input = document.querySelector('[data-action="n-weight"]');
