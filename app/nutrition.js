@@ -264,7 +264,8 @@ function setSpeed(v) {
 function recentFoods(filter = "") {
   const seen = new Map();
   const q = filter.trim().toLowerCase();
-  const newestFirst = [...data.meals].sort((a, b) => b.day.localeCompare(a.day) || data.meals.indexOf(b) - data.meals.indexOf(a));
+  const today = isoDay();
+  const newestFirst = data.meals.filter(m => m.day <= today).sort((a, b) => b.day.localeCompare(a.day) || data.meals.indexOf(b) - data.meals.indexOf(a));
   for (const m of newestFirst) {
     const key = m.food.toLowerCase();
     if (seen.has(key) || (q && !key.includes(q))) continue;
@@ -283,7 +284,11 @@ function quickMeal(food) {                                    // 최근 음식 �
   const m = recentFoods().find(x => x.food === food) || [...data.meals].reverse().find(x => x.food === food);
   if (!m) return;
   addMealCopy(m, ui.day || isoDay(), ui.mealForm);
-  changed();                                                   // (입력 칸에 커서를 다시 두지 않음: 폰 키보드가 튀어나오지 않게)
+  const typed = ["m-food", "m-kcal", "m-c", "m-p", "m-f"].map(id => [id, document.getElementById(id)?.value ?? ""]);
+  changed();                                                   // 다시 그리면 칸이 비니까, 적고 있던 글자를 되돌려 놓음
+  for (const [id, value] of typed) { const el = document.getElementById(id); if (el) el.value = value; }
+  const box = document.querySelector(".recent-foods");
+  if (box) box.innerHTML = recentFoodChips(typed[0][1]);                                                   // (입력 칸에 커서를 다시 두지 않음: 폰 키보드가 튀어나오지 않게)
 }
 
 function copyPreviousDay() {                                  // 전날 식단을 이 날로 (같은 끼니에)

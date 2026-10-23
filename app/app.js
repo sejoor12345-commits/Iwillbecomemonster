@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-c.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-d.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -37,20 +37,37 @@ function load() {
 
 // 나중 버전에서 늘어난 칸들의 빈 값 (예전에 저장된 data에는 이 칸이 없음)
 function EMPTY_EXTRAS() {
-  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false };
+  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false, deletedCustoms: [] };
+}
+
+// 이름을 바꾸다 보면 한 운동 안에 같은 종목이 둘 생길 수 있음 ("SLL" + "Lateral raise") → 앞 것에 세트를 합침
+function mergeSameName(exercises) {
+  const out = [];
+  for (const e of exercises) {
+    const first = out.find(x => x.name === e.name);
+    if (first) { first.sets.push(...e.sets); first.rpe = e.rpe ?? first.rpe; first.draft = e.draft; }
+    else out.push(e);
+  }
+  return out;
 }
 
 // 예전 이름으로 저장된 것을 사전의 정식 이름으로 (v0.5 종목 사전). 바뀐 운동은 다시 올리도록 synced를 끔
 //   "BB row" → "Barbell row",  "Smith SLL" → "Cable side lateral raise" …  (exercises.js의 dictionaryName)
 function canonicalizeData(d) {
   for (const w of d.workouts) {
+    let changed = false;
     for (const e of w.exercises) {
       const name = dictionaryName(e.name);
-      if (name && name !== e.name) { e.name = name; w.synced = false; }
+      if (name && name !== e.name) { e.name = name; changed = true; }
     }
+    if (changed) { w.exercises = mergeSameName(w.exercises); w.synced = false; }
   }
   for (const old of Object.keys(d.custom)) {                 // 내가 만든 종목인데 이제 사전에 있음 → 사전 것을 씀
-    if (dictionaryName(old)) { delete d.custom[old]; d.customDirty = true; }
+    if (dictionaryName(old)) {
+      delete d.custom[old];
+      d.customDirty = true;
+      if (!d.deletedCustoms.includes(old)) d.deletedCustoms.push(old);   // 인터넷(my_exercises)에서도 지우기
+    }
   }
   const hidden = [...new Set(d.hiddenGraphs.map(key => {     // 숨긴 그래프 "어깨|SLL" → "어깨|Side lateral raise"
     const [split, name] = key.split("|");
@@ -429,6 +446,7 @@ function restoreBackup(file) {
       Object.values(data.body).forEach(b => { b.synced = false; });
       data.meals.forEach(m => { m.synced = false; });
       if (data.nutrition) data.nutrition.dirty = true;
+      data = canonicalizeData(data);                                // 예전 백업의 옛 이름도 정식 이름으로
       save();
       ui.screen = data.currentId ? "workout" : "home";
       render();

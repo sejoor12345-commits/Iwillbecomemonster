@@ -138,6 +138,7 @@ function toLocalWorkout(row) {
       if (name !== e.name) renamed = true;
       return { name, rpe: e.rpe, sets, draft: { w: last.w, r: last.r } };
     });
+  if (renamed) exercises.splice(0, exercises.length, ...mergeSameName(exercises));   // 바꾼 이름이 겹치면 합치기 (app.js)
   return { id: row.id, split: row.split, start: row.started_at, end: row.ended_at, exercises, synced: !renamed };   // 이름이 바뀌었으면 다시 올리기
 }
 
@@ -189,6 +190,12 @@ async function syncNow() {
       await uploadWorkout(w);
       justUploaded.add(w.id);
       w.synced = true;                                            // 하나 올릴 때마다 바로 저장 → 끊겨도 다음에 이어서
+      save();
+    }
+    if (data.deletedCustoms && data.deletedCustoms.length) {       // 사전에 들어가서 없앤 내 종목 → 인터넷에서도 지우기
+      const { error } = await db.from("my_exercises").delete().in("name", data.deletedCustoms);
+      if (error) throw error;
+      data.deletedCustoms = [];
       save();
     }
     if (data.customDirty) {                                       // 내가 만든 종목
