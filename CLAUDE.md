@@ -11,6 +11,17 @@ A personal workout + nutrition tracker built as a learning project. Two layers:
 
 The owner is a beginner learning "vibe coding" and reads code at map level. Talk to them in Korean 반말, beginner-friendly. Code comments are in Korean, and each file opens with a `[지도]` block (들어오는 것 / 하는 일 / 나가는 것); keep that style. Tunable numbers live as named constants at the top of each file so they can be changed in one line.
 
+## Suggesting tools (owner's rule)
+
+작업 중 더 효율적으로 작업할 수 있는 방법이 보이면 skill, MCP, hook, 외부 도구·라이브러리 등을 제안할 것.
+- 진행 중인 작업을 끊지 말고, 작업을 마친 뒤 답변 끝에 한 줄로 제안
+- 이유와 추가했을 때 달라지는 점을 짧게 함께 적을 것
+- 직접 추가하지 말고 내 동의를 받을 것
+- 이미 거절한 제안은 반복하지 말 것
+- Claude Code 웹 환경에서 작동하지 않는 것(plugin 등)은 제안하지 말 것
+
+For a full review on demand, the owner runs the `tooling-review` skill.
+
 ## Running and checking
 
 - Serve locally: `cd app && python3 -m http.server 8772` → http://localhost:8772
@@ -39,4 +50,4 @@ Classic `<script>` tags sharing globals; **load order in `index.html` matters**:
 ## Other folders
 
 - `study/` — offline review notes (HTML + print PDF) generated for the owner; not part of the app or deploy.
-- `.claude/skills/code-reading` (how to teach code reading to this user) and `.claude/skills/study-log` (Notion learning-log format). Follow them when the user asks to read code or record progress.
+- `.claude/skills/code-reading` (how to teach code reading to this user), `.claude/skills/study-log` (Notion learning-log format), and `.claude/skills/tooling-review` (manual-only tool review). Follow them when the user asks to read code, record progress, or review tooling.
