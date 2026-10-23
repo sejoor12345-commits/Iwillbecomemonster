@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.4-d.5";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.4-e.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -556,8 +556,19 @@ function formPanel() {
     </section>`;
 }
 
+// 종목 추가 칸 = 검색 입력 칸 + 결과 목록.  글자를 칠 때는 결과 목록(.pick-results)만 다시 그림
+//   → 입력 칸은 그대로 남아서 한글 조합이 끊기지 않고 빠름 (전체 render()는 한 글자에 수십 ms였음)
 function addPanel(w) {
   if (ui.form) return formPanel();
+  return `
+    <section class="card add">
+      <div class="card-head static"><b>종목 추가</b><button class="link small" data-action="close-add">닫기</button></div>
+      <input type="search" placeholder="종목 검색 (예: bench)" value="${escapeHtml(ui.query)}" data-action="search" autocomplete="off">
+      <div class="pick-results">${pickResults(w)}</div>
+    </section>`;
+}
+
+function pickResults(w) {
   const q = ui.query.trim().toLowerCase();
   const done = new Set(w.exercises.map(e => e.name));
   const lastSame = finishedWorkouts().filter(x => x.split === w.split).pop();
@@ -577,13 +588,15 @@ function addPanel(w) {
   }).join("");
   const exact = all.some(n => n.toLowerCase() === q);
   return `
-    <section class="card add">
-      <div class="card-head static"><b>종목 추가</b><button class="link small" data-action="close-add">닫기</button></div>
-      <input type="search" placeholder="종목 검색 (예: bench)" value="${escapeHtml(ui.query)}" data-action="search" autocomplete="off">
       ${q && !exact ? `<button class="pick new" data-action="pick" data-name="${escapeHtml(ui.query.trim())}">+ "${escapeHtml(ui.query.trim())}" 새 종목으로 추가</button>` : ""}
       ${!q && suggested.length ? `<p class="group">지난번 ${w.split}에서 한 종목</p>${suggested.map(item).join("")}` : ""}
-      <div class="pick-list">${groups}</div>
-    </section>`;
+      <div class="pick-list">${groups}</div>`;
+}
+
+function updateSearch(value) {                   // 검색 결과만 바꾸기 (입력 칸은 건드리지 않음)
+  ui.query = value;
+  const box = document.querySelector(".pick-results");
+  if (box && current()) box.innerHTML = pickResults(current());
 }
 
 function workoutView() {
@@ -705,18 +718,12 @@ document.addEventListener("click", event => {
 
 document.addEventListener("input", event => {
   const el = event.target;
-  if (el.dataset.action === "search" && !event.isComposing) {   // 한글 조합 중에는 기다림
-    Object.assign(ui, { query: el.value, focusSearch: true });
-    render();
-  }
+  if (el.dataset.action === "search") updateSearch(el.value);    // 한글 조합 중에도 결과만 바로 바꿈
   if (el.dataset.action === "type") typeDraft(Number(el.dataset.i), el.dataset.field, el.value);
 });
 
 document.addEventListener("compositionend", event => {           // 한글 한 글자 조합이 끝나면 검색
-  if (event.target.dataset.action === "search") {
-    Object.assign(ui, { query: event.target.value, focusSearch: true });
-    render();
-  }
+  if (event.target.dataset.action === "search") updateSearch(event.target.value);
 });
 
 document.addEventListener("change", event => {
