@@ -1,0 +1,42 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A personal workout + nutrition tracker built as a learning project. Two layers:
+
+- **Notebooks (the "lab")**: `gym_log.ipynb` (workout memo → table → growth → next-weight suggestion) and `weight_log.ipynb` (daily weight + kcal → 7-day average → maintenance kcal). Run in Google Colab.
+- **App (the "product")**: `app/` — a no-build static PWA (vanilla JS, no framework, no bundler, no npm). Rules are proven in a notebook first, then ported to JS. Keep the two in sync when a rule changes (e.g. `app/exercises.js` mirrors notebook ② `EXERCISES`; `nextWeight` mirrors ⑧; e1RM mirrors ④ including rounding to 0.1 so change % matches ⑥; Nutrition maintenance mirrors `weight_log.ipynb` ④–⑤).
+
+The owner is a beginner learning "vibe coding" and reads code at map level. Talk to them in Korean 반말, beginner-friendly. Code comments are in Korean, and each file opens with a `[지도]` block (들어오는 것 / 하는 일 / 나가는 것); keep that style. Tunable numbers live as named constants at the top of each file so they can be changed in one line.
+
+## Running and checking
+
+- Serve locally: `cd app && python3 -m http.server 8772` → http://localhost:8772
+- Syntax check: `node --check app/<file>.js`
+- There is no test suite in the repo. Changes have been verified with ad-hoc Playwright scripts (global `playwright` npm package, Chromium preinstalled) that replace `vendor/supabase-*.js` via `page.route` with a fake client recording calls, seed `localStorage["iwbm-data-v1"]`, and click through `[data-action=...]` buttons. Use iPhone device emulation; for performance checks use CDP `Emulation.setCPUThrottlingRate`.
+- Deploy: Vercel serves `app/` (root `vercel.json` sets `outputDirectory: "app"` and no-cache for `sw.js`). Production tracks the current version branch, so pushing to it deploys.
+
+## Branches and versions
+
+One branch per version (`v0.1` … `v0.4`, next `v0.5`); each new version branches from the previous one. Work on the current version branch, not `main`. When the app changes, bump **both** `APP_VERSION` in `app/app.js` (shown at the bottom of Home) and `CACHE` in `app/sw.js`; otherwise phones keep the old cached files (stale-while-revalidate) and only show the update on the second open. The README roadmap table tracks version status; update it when a version moves.
+
+## App architecture (`app/`)
+
+Classic `<script>` tags sharing globals; **load order in `index.html` matters**: `exercises.js` → `app.js` → `nutrition.js` → `progress.js` → `vendor/supabase` → `sync.js` → `import.js`. `sync.js` starts a sync immediately on load, so any file whose sync hook it calls must load before it (this was a real bug). Cross-file calls are guarded with `typeof fn === "function"`.
+
+- **State**: `data` (persisted to `localStorage` key `iwbm-data-v1` via `save()`/`load()`; `load()` spreads `EMPTY_EXTRAS()` under old saves so new fields exist) and `ui` (screen state, not persisted; other files add their fields with `Object.assign(ui, …)`).
+- **Render loop**: every action mutates `data`/`ui` → `save()` → `render()` → `views[ui.screen]()` returns an HTML string → `#app.innerHTML`. User-entered text must go through `escapeHtml`. Full re-render wipes inputs, so typing-heavy UI updates only a sub-container (see `updateSearch` → `.pick-results`) and keeps typed values in `ui` drafts; `sync.js`'s `refreshIfSafe()` skips re-render while a form is open.
+- **Events**: one `document` click listener per file, dispatching on `data-action` (`el.closest("[data-action]")`, values via `dataset`, which are strings). Prefixes: Nutrition `n-…`, graphs `graph-…`.
+- **Screens**: Home has two sections — Workout (`workoutsView`: 기록/그래프 tabs; recording in `workoutView`) and Nutrition (`nutrition.js`: 식단/체중 tabs sharing one day picker). Graphs: `progress.js` (top weight per split+exercise per day; e1RM shown as a single line under the chart); weight chart in `nutrition.js`. Charts are hand-written SVG with shared `.chart` styles and colors from CSS tokens.
+- **Nutrition rules**: maintenance = mean intake of *complete* days − daily weight slope × 7700 over the last 14 days (needs 10 weight days and 7 complete meal days; today excluded). A past day counts as complete if a user mark says so, otherwise if kcal ≥ 60% of the target derived from the starting estimate. Starting estimate: manual value > Mifflin-St Jeor BMR × activity factor > `INITIAL_MAINTENANCE`.
+
+## Sync (Supabase)
+
+`sync.js` (`syncNow`) runs on app open, login, workout finish, reconnect, and after Nutrition changes. Order: delete what was deleted locally → upload unsynced → download. Change tracking: per-record `synced: false` (workouts, weights, meals; upload one at a time and save after each so interrupted syncs resume) and whole-object dirty flags (`customDirty`, `nutrition.dirty`, `hiddenDirty`). Downloads remove local synced records missing remotely, except ids in `justUploaded`. Workouts are split across `workouts` ─< `workout_exercises` ─< `sets`; also `my_exercises`, `body_weights`, `meals`, `nutrition_settings`, `app_settings`. Every table has an "own rows" RLS policy on `user_id = auth.uid()`; the client uses the publishable key. Schema lives in `supabase/migrations/` (applied to the project via the Supabase MCP); note `meals.slot` has a CHECK constraint, so adding a meal slot needs a migration too. Exercise names are stored as text, so renames need a local migration (see `renameExercise` in `load()`).
+
+## Other folders
+
+- `study/` — offline review notes (HTML + print PDF) generated for the owner; not part of the app or deploy.
+- `.claude/skills/code-reading` (how to teach code reading to this user) and `.claude/skills/study-log` (Notion learning-log format). Follow them when the user asks to read code or record progress.
