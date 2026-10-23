@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-b.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-c.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -294,6 +294,7 @@ function completeSet(i) {                       // [세트 완료] 또는 [수�
   const set = { w: isBodyweight(e.name) ? 0 : e.draft.w, r: e.draft.r, t: new Date().toISOString() };   // t = 완료 시각 (휴식 계산용)
   if (ui.edit && ui.edit.ex === i) {
     set.t = e.sets[ui.edit.set].t;              // 수정은 시각을 바꾸지 않음
+    if (e.sets[ui.edit.set].note) set.note = e.sets[ui.edit.set].note;   // 메모도 그대로
     e.sets[ui.edit.set] = set;                  // 수정: 그 자리의 세트를 바꿈 (순서 유지)
     ui.edit = null;
     if (e.sets.length) e.draft = { ...e.sets[e.sets.length - 1] };
@@ -330,6 +331,21 @@ function deleteSet(i, j) {
   ui.edit = null;
   save();
   render();
+}
+
+// 세트 메모 ("그립 넓게" …): 세트 칩 → 메모. 비우면 지움. 노트북으로 가는 메모 형식에는 안 들어감 (노트북은 숫자만 읽음)
+function noteSet(i, j) {
+  const set = current().exercises[i].sets[j];
+  const text = prompt(`${j + 1}세트 메모 (비우면 지워요)`, set.note || "");
+  if (text === null) return;                                  // 취소
+  if (text.trim()) set.note = text.trim(); else delete set.note;
+  ui.menu = null;
+  save();
+  render();
+}
+
+function setNotes(sets) {                       // 메모가 있는 세트만 "2세트: 그립 넓게" 모양으로 (화면에 넣을 글자라 escape)
+  return sets.map((s, j) => s.note ? `${j + 1}세트: ${escapeHtml(s.note)}` : null).filter(Boolean);
 }
 
 function setRpe(i, value) {
@@ -492,9 +508,11 @@ function setChips(i, e) {
     const menu = ui.menu && ui.menu.ex === i && ui.menu.set === j ? `
         <span class="menu">
           <button data-action="edit-set" data-i="${i}" data-j="${j}">수정</button>
+          <button data-action="note-set" data-i="${i}" data-j="${j}">메모</button>
           <button class="danger" data-action="delete-set" data-i="${i}" data-j="${j}">삭제</button>
+          ${s.note ? `<span class="small muted chip-note">${escapeHtml(s.note)}</span>` : ""}
         </span>` : "";
-    return `<span class="chip-wrap"><button class="chip ${editing ? "editing" : ""}" data-action="chip" data-i="${i}" data-j="${j}">${label}</button>${menu}</span>`;
+    return `<span class="chip-wrap"><button class="chip ${editing ? "editing" : ""}" data-action="chip" data-i="${i}" data-j="${j}">${label}${s.note ? " ✎" : ""}</button>${menu}</span>`;
   }).join("");
 }
 
@@ -525,6 +543,7 @@ function exerciseCard(e, i, split) {
         <button class="link danger small" data-action="remove-ex" data-i="${i}">종목 빼기</button>
       </div>
       ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastTimeExercise(split, e.name).rpe ? " @" + lastTimeExercise(split, e.name).rpe : ""}</p>` : ""}
+      ${last ? setNotes(last).map(n => `<p class="small last-note">✎ 지난번 ${n}</p>`).join("") : ""}
       ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(split, e.name)) : ""}
       ${bw ? "" : stepper("w", "kg", e.draft.w)}
       ${stepper("r", "회", e.draft.r)}
@@ -647,6 +666,8 @@ function summaryView() {
         <div><b>${duration(w)}</b><span>운동 시간</span></div>
       </div>
       ${averageRest(w) ? `<p class="muted small center">세트 사이 평균 휴식 ${clock(averageRest(w))}</p>` : ""}
+      ${w.exercises.some(e => setNotes(e.sets).length) ? `<h2>세트 메모</h2>${w.exercises.map(e => setNotes(e.sets)
+        .map(n => `<p class="small"><b>${escapeHtml(e.name)}</b> ${n}</p>`).join("")).join("")}` : ""}
       <h2>메모 형식</h2>
       <textarea readonly rows="${w.exercises.length + 2}">${escapeHtml(toMemo(w))}</textarea>
       <button class="primary" data-action="copy">복사하기</button>
@@ -718,6 +739,7 @@ document.addEventListener("click", event => {
     case "chip": return openMenu(i, j);
     case "edit-set": return editSet(i, j);
     case "delete-set": return deleteSet(i, j);
+    case "note-set": return noteSet(i, j);
     case "cancel-edit": return cancelEdit();
     case "rpe": return setRpe(i, Number(el.dataset.v));
     case "remove-ex": return removeExercise(i);

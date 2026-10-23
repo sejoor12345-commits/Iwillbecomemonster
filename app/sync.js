@@ -113,7 +113,7 @@ async function uploadWorkout(w) {
 
   // [4] 세트 넣기 (한 줄 = 한 세트)
   const sets = w.exercises.flatMap((e, i) => e.sets.map((s, j) => ({
-    workout_exercise_id: idOf[i + 1], set_no: j + 1, weight: s.w, reps: s.r, done_at: s.t || null,
+    workout_exercise_id: idOf[i + 1], set_no: j + 1, weight: s.w, reps: s.r, done_at: s.t || null, note: s.note || null,
   })));
   if (sets.length) {
     result = await db.from("sets").insert(sets);
@@ -132,7 +132,7 @@ function toLocalWorkout(row) {
     .map(e => {
       const sets = [...e.sets]
         .sort((a, b) => a.set_no - b.set_no)                      // 1세트, 2세트 … 순서대로
-        .map(s => ({ w: Number(s.weight), r: s.reps, t: s.done_at }));
+        .map(s => (s.note ? { w: Number(s.weight), r: s.reps, t: s.done_at, note: s.note } : { w: Number(s.weight), r: s.reps, t: s.done_at }));
       const last = sets[sets.length - 1] || { w: 0, r: 0 };
       const name = dictionaryName(e.name) || e.name;               // 옛 이름이면 정식 이름으로
       if (name !== e.name) renamed = true;
@@ -144,7 +144,7 @@ function toLocalWorkout(row) {
 async function downloadAll(justUploaded) {
   // 표 3개를 이름표(id)로 이어서 한 번에 가져오기. RLS 덕분에 내 기록만 온다.
   const { data: rows, error } = await db.from("workouts")
-    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, sets(set_no, weight, reps, done_at))");
+    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, sets(set_no, weight, reps, done_at, note))");
   if (error) throw error;
 
   const remoteIds = new Set(rows.map(r => r.id));
