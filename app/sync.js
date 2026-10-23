@@ -126,6 +126,7 @@ async function uploadWorkout(w) {
 // 표 3개 → 앱의 모양 (운동 → 종목들 → 세트들)
 //   workouts 한 줄 + 그 운동의 workout_exercises 줄들 + 각 종목의 sets 줄들  →  { id, split, start, end, exercises: [...] }
 function toLocalWorkout(row) {
+  let renamed = false;
   const exercises = [...row.workout_exercises]
     .sort((a, b) => a.position - b.position)                      // 그날 한 순서대로
     .map(e => {
@@ -133,9 +134,11 @@ function toLocalWorkout(row) {
         .sort((a, b) => a.set_no - b.set_no)                      // 1세트, 2세트 … 순서대로
         .map(s => ({ w: Number(s.weight), r: s.reps, t: s.done_at }));
       const last = sets[sets.length - 1] || { w: 0, r: 0 };
-      return { name: e.name, rpe: e.rpe, sets, draft: { w: last.w, r: last.r } };
+      const name = dictionaryName(e.name) || e.name;               // 옛 이름이면 정식 이름으로
+      if (name !== e.name) renamed = true;
+      return { name, rpe: e.rpe, sets, draft: { w: last.w, r: last.r } };
     });
-  return { id: row.id, split: row.split, start: row.started_at, end: row.ended_at, exercises, synced: true };
+  return { id: row.id, split: row.split, start: row.started_at, end: row.ended_at, exercises, synced: !renamed };   // 이름이 바뀌었으면 다시 올리기
 }
 
 async function downloadAll(justUploaded) {
@@ -162,6 +165,7 @@ async function downloadAll(justUploaded) {
     .select("name, part, range_low, range_high, step");
   if (e2) throw e2;
   for (const c of mine) {
+    if (dictionaryName(c.name)) continue;                         //     사전에 있는 종목(옛 이름 포함)은 건너뜀
     if (!data.custom[c.name]) data.custom[c.name] = { part: c.part, range: [c.range_low, c.range_high], step: Number(c.step) };
   }
   save();

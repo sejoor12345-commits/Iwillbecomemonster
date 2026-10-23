@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.4-e.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-a.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -30,7 +30,7 @@ const STEP_CHOICES = [1, 2, 2.5, 4, 5];                                     // �
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.workouts)) return renameExercise({ ...EMPTY_EXTRAS(), ...saved }, "Incline bench press", "Smith IBP");
+    if (saved && Array.isArray(saved.workouts)) return canonicalizeData({ ...EMPTY_EXTRAS(), ...saved });
   } catch (e) { /* 저장된 게 없거나 깨졌으면 새로 시작 */ }
   return { workouts: [], currentId: null, custom: {}, ...EMPTY_EXTRAS() };
 }
@@ -40,14 +40,23 @@ function EMPTY_EXTRAS() {
   return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false };
 }
 
-// 종목 이름 바꾸기 (예전에 다른 이름으로 저장된 기록 고치기). 바뀐 운동은 다시 올리도록 synced를 끔
-function renameExercise(d, from, to) {
+// 예전 이름으로 저장된 것을 사전의 정식 이름으로 (v0.5 종목 사전). 바뀐 운동은 다시 올리도록 synced를 끔
+//   "BB row" → "Barbell row",  "Smith SLL" → "Cable side lateral raise" …  (exercises.js의 dictionaryName)
+function canonicalizeData(d) {
   for (const w of d.workouts) {
     for (const e of w.exercises) {
-      if (e.name === from) { e.name = to; w.synced = false; }
+      const name = dictionaryName(e.name);
+      if (name && name !== e.name) { e.name = name; w.synced = false; }
     }
   }
-  if (d.custom[from]) { delete d.custom[from]; d.customDirty = true; }
+  for (const old of Object.keys(d.custom)) {                 // 내가 만든 종목인데 이제 사전에 있음 → 사전 것을 씀
+    if (dictionaryName(old)) { delete d.custom[old]; d.customDirty = true; }
+  }
+  const hidden = [...new Set(d.hiddenGraphs.map(key => {     // 숨긴 그래프 "어깨|SLL" → "어깨|Side lateral raise"
+    const [split, name] = key.split("|");
+    return `${split}|${dictionaryName(name) || name}`;
+  }))];
+  if (hidden.join() !== d.hiddenGraphs.join()) { d.hiddenGraphs = hidden; d.hiddenDirty = true; }
   return d;
 }
 
@@ -229,7 +238,7 @@ function startWorkout(split) {
 }
 
 function addExercise(name) {
-  name = name.trim();
+  name = dictionaryName(name) || name.trim();                // 별명 · 한국어로 골라도 정식 이름으로
   if (!name) return;
   if (!EXERCISES[name] && !data.custom[name]) {           // 처음 보는 종목 → 부위 · 종류를 정하는 칸 열기
     return openForm(name, false);
@@ -573,12 +582,20 @@ function pickResults(w) {
   const done = new Set(w.exercises.map(e => e.name));
   const lastSame = finishedWorkouts().filter(x => x.split === w.split).pop();
   const suggested = lastSame ? lastSame.exercises.map(e => e.name).filter(n => !done.has(n)) : [];
-  const all = [...Object.keys(EXERCISES), ...Object.keys(data.custom)]
-    .filter(n => !done.has(n) && n.toLowerCase().includes(q));
+  // 검색: 정식 이름 · 한국어 이름 · 별명 중 하나라도 맞으면. 별명으로 찾았으면 그 별명을 작게 보여 줌 ("Side lateral raise  SLL")
+  const hint = n => {
+    if (!q || n.toLowerCase().includes(q)) return "";
+    const e = EXERCISES[n];
+    const alias = e && [e.ko, ...e.aliases].find(a => a.toLowerCase().includes(q));
+    if (alias) return alias;
+    return dictionaryName(q) === n ? ui.query.trim() : null;     // 옛 이름을 그대로 쳤을 때 ("Smith SLL"), 아니면 null = 안 맞음
+  };
+  const all = [...Object.keys(EXERCISES), ...Object.keys(data.custom)].filter(n => !done.has(n) && hint(n) !== null);
   const item = n => {
     const mine = data.custom[n];
     const fix = mine ? `<button class="link small" data-action="edit-form" data-name="${escapeHtml(n)}">${mine.part === "미분류" ? "부위 정하기" : "수정"}</button>` : "";
-    return `<div class="pick-row"><button class="pick" data-action="pick" data-name="${escapeHtml(n)}">${escapeHtml(n)}</button>${fix}</div>`;
+    const h = hint(n);
+    return `<div class="pick-row"><button class="pick" data-action="pick" data-name="${escapeHtml(n)}">${escapeHtml(n)}${h ? `<span class="muted small">${escapeHtml(h)}</span>` : ""}</button>${fix}</div>`;
   };
   // 부위별로 묶고, 묶음 안에서는 알파벳 순서
   const groups = partOrder(w.split).map(part => {
@@ -586,7 +603,7 @@ function pickResults(w) {
       .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
     return names.length ? `<p class="group">${part}</p>${names.map(item).join("")}` : "";
   }).join("");
-  const exact = all.some(n => n.toLowerCase() === q);
+  const exact = all.some(n => n.toLowerCase() === q) || !!dictionaryName(q) || done.has(dictionaryName(q));   // 이미 있는 이름이면 "새 종목" 버튼 안 보임
   return `
       ${q && !exact ? `<button class="pick new" data-action="pick" data-name="${escapeHtml(ui.query.trim())}">+ "${escapeHtml(ui.query.trim())}" 새 종목으로 추가</button>` : ""}
       ${!q && suggested.length ? `<p class="group">지난번 ${w.split}에서 한 종목</p>${suggested.map(item).join("")}` : ""}

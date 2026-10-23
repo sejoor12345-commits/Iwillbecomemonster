@@ -11,14 +11,13 @@
 //   parse_superset(tokens)            parseSuperset(tokens)    → [{ name, sets }, { name, sets }]
 //   parse_memo(memo)                  parseMemo(memo)          → { sessions, skipped }
 
-const ALIASES = { "ibp": "Free IBP", "hanging leg raise": "HLR", "incline bench press": "Smith IBP" };    // 같은 종목의 다른 이름 (소문자로 적기)
-
-// 이름 정리: 별명 → 정식 이름, 대소문자만 다르면 목록의 이름으로 ("Smith sll" → "Smith SLL")
+// 이름 정리: 사전의 별명 · 한국어 · 옛 이름 → 정식 이름 (exercises.js), 대소문자만 다른 내 종목 → 그 이름
 function canonicalName(raw) {
+  const fromDictionary = dictionaryName(raw);
+  if (fromDictionary) return fromDictionary;
   const lower = raw.trim().toLowerCase();
-  if (ALIASES[lower]) return ALIASES[lower];
-  const known = [...Object.keys(EXERCISES), ...Object.keys(data.custom)].find(n => n.toLowerCase() === lower);
-  return known || raw.trim();
+  const mine = Object.keys(data.custom).find(n => n.toLowerCase() === lower);
+  return mine || raw.trim();
 }
 
 // "60*10*3" → { w: 60, r: 10, count: 3 },  "60x10" → { w: 60, r: 10, count: 1 },  세트 모양이 아니면 null

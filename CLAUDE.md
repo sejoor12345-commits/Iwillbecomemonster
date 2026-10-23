@@ -9,6 +9,8 @@ A personal workout + nutrition tracker built as a learning project. Two layers:
 - **Notebooks (the "lab")**: `gym_log.ipynb` (workout memo → table → growth → next-weight suggestion) and `weight_log.ipynb` (daily weight + kcal → 7-day average → maintenance kcal). Run in Google Colab.
 - **App (the "product")**: `app/` — a no-build static PWA (vanilla JS, no framework, no bundler, no npm). Rules are proven in a notebook first, then ported to JS. Keep the two in sync when a rule changes (e.g. `app/exercises.js` mirrors notebook ② `EXERCISES`; `nextWeight` mirrors ⑧; e1RM mirrors ④ including rounding to 0.1 so change % matches ⑥; Nutrition maintenance mirrors `weight_log.ipynb` ④–⑤).
 
+**Exercise dictionary (v0.5)**: `app/exercises.js` maps canonical English names to `ko`, `part`, `range`, `step`, `aliases`, plus hidden `LEGACY_NAMES`; `dictionaryName()` resolves any alias / Korean name / old name (case-insensitive). Records always store the canonical name; `canonicalizeData()` in `load()` renames old saves and marks them for re-upload. Notebook ② (`EXERCISES`, `ALIASES`, `canonical()`) is generated to match — change both together.
+
 The owner is a beginner learning "vibe coding" and reads code at map level. Talk to them in Korean 반말, beginner-friendly. Code comments are in Korean, and each file opens with a `[지도]` block (들어오는 것 / 하는 일 / 나가는 것); keep that style. Tunable numbers live as named constants at the top of each file so they can be changed in one line.
 
 ## Suggesting tools (owner's rule)
@@ -31,7 +33,7 @@ For a full review on demand, the owner runs the `tooling-review` skill.
 
 ## Branches and versions
 
-One branch per version (`v0.1` … `v0.4`, next `v0.5`); each new version branches from the previous one. Work on the current version branch, not `main`. When the app changes, bump **both** `APP_VERSION` in `app/app.js` (shown at the bottom of Home) and `CACHE` in `app/sw.js`; otherwise phones keep the old cached files (stale-while-revalidate) and only show the update on the second open. The README roadmap table tracks version status; update it when a version moves.
+One branch per version (`v0.1` … `v0.5`); each new version branches from the previous one. Work on the current version branch, not `main`. When the app changes, bump **both** `APP_VERSION` in `app/app.js` (shown at the bottom of Home) and `CACHE` in `app/sw.js`; otherwise phones keep the old cached files (stale-while-revalidate) and only show the update on the second open. The README roadmap table tracks version status; update it when a version moves.
 
 ## App architecture (`app/`)
 
@@ -45,7 +47,7 @@ Classic `<script>` tags sharing globals; **load order in `index.html` matters**:
 
 ## Sync (Supabase)
 
-`sync.js` (`syncNow`) runs on app open, login, workout finish, reconnect, and after Nutrition changes. Order: delete what was deleted locally → upload unsynced → download. Change tracking: per-record `synced: false` (workouts, weights, meals; upload one at a time and save after each so interrupted syncs resume) and whole-object dirty flags (`customDirty`, `nutrition.dirty`, `hiddenDirty`). Downloads remove local synced records missing remotely, except ids in `justUploaded`. Workouts are split across `workouts` ─< `workout_exercises` ─< `sets`; also `my_exercises`, `body_weights`, `meals`, `nutrition_settings`, `app_settings`. Every table has an "own rows" RLS policy on `user_id = auth.uid()`; the client uses the publishable key. Schema lives in `supabase/migrations/` (applied to the project via the Supabase MCP); note `meals.slot` has a CHECK constraint, so adding a meal slot needs a migration too. Exercise names are stored as text, so renames need a local migration (see `renameExercise` in `load()`).
+`sync.js` (`syncNow`) runs on app open, login, workout finish, reconnect, and after Nutrition changes. Order: delete what was deleted locally → upload unsynced → download. Change tracking: per-record `synced: false` (workouts, weights, meals; upload one at a time and save after each so interrupted syncs resume) and whole-object dirty flags (`customDirty`, `nutrition.dirty`, `hiddenDirty`). Downloads remove local synced records missing remotely, except ids in `justUploaded`. Workouts are split across `workouts` ─< `workout_exercises` ─< `sets`; also `my_exercises`, `body_weights`, `meals`, `nutrition_settings`, `app_settings`. Every table has an "own rows" RLS policy on `user_id = auth.uid()`; the client uses the publishable key. Schema lives in `supabase/migrations/` (applied to the project via the Supabase MCP); note `meals.slot` has a CHECK constraint, so adding a meal slot needs a migration too. Exercise names are stored as text, so renames need a local migration (see `canonicalizeData` in `load()`).
 
 ## Other folders
 
