@@ -232,3 +232,13 @@ button.full { width: 100%; margin-top: 4px; }
 .e1rm { margin: 0 0 4px; font-variant-numeric: tabular-nums; }
 .hrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
 .plist > .hrow:first-child { border-top: none; }
+
+/* v0.4-e 유지 칼로리 정하기 · 다 적은 날 */
+.daystatus { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.daystatus.partial { border: 1px dashed var(--line); }
+.daystatus button { flex: none; }
+.levels { display: grid; gap: 6px; }
+.level { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; text-align: left; padding: 8px 10px; }
+.level span:last-child { flex-basis: 100%; }
+.level.selected span { color: var(--accent-text); }
+.mini-value { display: block; margin-top: 2px; padding: 8px 0; font-size: 16px; color: var(--text); }

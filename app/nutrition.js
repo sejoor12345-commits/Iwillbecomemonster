@@ -1,4 +1,4 @@
-// I will become monster — v0.4-d-1 체중 · 식단 (🥗 Nutrition 화면)
+// I will become monster — v0.4-d-1 · e 체중 · 식단 (🥗 Nutrition 화면)
 //
 // [지도]
 //   들어오는 것: 매일 체중, 끼니마다 음식 + 칼로리 + 탄단지 (FatSecret 숫자를 옮겨 적기)
@@ -9,7 +9,11 @@
 // [저장 모양] app.js의 data 안에 같이 저장
 //   body:  { "2026-10-09": { w: 83.6, synced: false } }                     ← 하루에 체중 하나
 //   meals: [ { id, day: "2026-10-09", slot: "아침", food, kcal, c, p, f, synced } ]   ← 음식 하나 = 한 줄
-//   nutrition: { ratio: [50, 30, 20], kgPerWeek: -0.5, dayRatios: { "2026-10-12": [60, 20, 20] }, dirty }
+//   nutrition: { ratio: [50, 30, 20], kgPerWeek: -0.5, dayRatios: { "2026-10-12": [60, 20, 20] },
+//                profile: { sex: "남", birthYear: 2003, height: 178, activity: 2 } 또는 null,   ← 공식용 내 정보
+//                manualMaintenance: 2750 또는 null,                                          ← 직접 입력한 유지 칼로리
+//                dayStatus: { "2026-10-10": false },   ← 직접 표시: true = 다 적은 날, false = 덜 적은 날 (없으면 자동 판정)
+//                dirty }
 //   deletedMeals: [id], deletedWeights: [day]                               ← 인터넷에서도 지울 것
 
 // ---------- 0. 설정 (노트북 ②와 같은 손잡이) ----------
@@ -18,7 +22,15 @@ const DEFAULT_RATIO = [50, 30, 20];        // 탄:단:지 (%) — 설정을 한 
 const RATIO_PRESETS = [[50, 30, 20], [40, 30, 30]];
 const DEFAULT_KG_PER_WEEK = -0.5;          // 목표 속도 (kg/주): 감량 -0.5 / 유지 0 / 증량 0.25
 const SPEED_CHOICES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
-const INITIAL_MAINTENANCE = 2750;          // 기록이 부족할 때 쓰는 유지 칼로리 (kcal)
+const INITIAL_MAINTENANCE = 2500;          // 내 정보도 직접 입력도 없을 때 쓰는 유지 칼로리 (kcal)
+const COMPLETE_DAY_RATIO = 0.6;            // 그날 칼로리가 (처음 추정) 추천 섭취의 60%보다 적으면 "덜 적은 날" → 계산에서 뺌
+const ACTIVITY_LEVELS = [                  // 활동계수 (기초대사량에 곱함)
+  { factor: 1.2,   name: "거의 안 움직임", example: "운동은 거의 안 하고, 대부분 앉아서 생활" },
+  { factor: 1.375, name: "가벼움",        example: "가벼운 운동(걷기 · 가벼운 홈트레이닝) 주 1~3일" },
+  { factor: 1.55,  name: "보통",          example: "중간 강도 운동(웨이트 · 조깅) 주 3~5일" },
+  { factor: 1.725, name: "많음",          example: "고강도 운동(무거운 웨이트 · 러닝 · 인터벌) 주 6~7일" },
+  { factor: 1.9,   name: "매우 많음",     example: "고강도 운동을 하루 2번 하거나, 매일 고강도 운동 + 몸을 많이 쓰는 일" },
+];
 const WINDOW_DAYS = 14;                    // 최근 며칠로 유지 칼로리를 계산할지
 const MIN_WEIGHT_DAYS = 10;                // 그 기간에 체중 기록이 최소 며칠
 const MIN_KCAL_DAYS = 7;                   // 그 기간에 식사 기록이 최소 며칠 (오늘은 아직 덜 먹었으니 빼고 셈)
@@ -39,6 +51,8 @@ Object.assign(ui, {
   ratioPanel: false,     // 목표 비율 바꾸기 칸
   ratioDraft: null,
   speedPanel: false,     // 목표 속도 바꾸기 칸
+  basePanel: false,      // 처음 유지 칼로리 정하기 칸 (공식 / 직접 입력)
+  baseDraft: null,       // { mode: "formula" | "manual", sex, activity } — 버튼으로 고르는 것만
 });
 
 
@@ -68,7 +82,11 @@ const round1 = x => Math.round(x * 10) / 10;
 
 function nutritionSettings() {
   if (!data.nutrition) data.nutrition = { ratio: [...DEFAULT_RATIO], kgPerWeek: DEFAULT_KG_PER_WEEK, dayRatios: {}, dirty: false };
-  return data.nutrition;
+  const s = data.nutrition;                                    // 예전에 저장된 설정에는 없는 칸 채우기
+  if (s.profile === undefined) s.profile = null;
+  if (s.manualMaintenance === undefined) s.manualMaintenance = null;
+  if (!s.dayStatus) s.dayStatus = {};
+  return s;
 }
 
 function weightDays() {                                        // 체중을 잰 날들, 오래된 순
@@ -103,14 +121,42 @@ function slope(xs, ys) {                                       // 직선의 기�
   return bottom ? top / bottom : 0;
 }
 
+// 기록이 쌓이기 전의 유지 칼로리: 직접 입력 > 공식(Mifflin-St Jeor 기초대사량 × 활동계수) > 기본값
+function baseMaintenance(today) {
+  const s = nutritionSettings();
+  if (s.manualMaintenance) return { value: s.manualMaintenance, source: "manual" };
+  const p = s.profile;
+  const w = avg7(today) ?? lastWeightUpTo(today);
+  if (p && w) {
+    const age = Number(today.slice(0, 4)) - p.birthYear;
+    const bmr = 10 * w + 6.25 * p.height - 5 * age + (p.sex === "남" ? 5 : -161);
+    const factor = ACTIVITY_LEVELS[p.activity].factor;
+    return { value: Math.round(bmr * factor / 10) * 10, source: "formula", bmr, factor };
+  }
+  return { value: INITIAL_MAINTENANCE, source: "default" };
+}
+
+// 이 날 식사를 유지 칼로리 계산에 넣을까?  직접 표시가 있으면 그대로, 없으면 칼로리가 기준(minKcal) 이상인지로 자동 판정
+function dayCounted(day, minKcal) {
+  const marked = nutritionSettings().dayStatus[day];
+  if (marked === true || marked === false) return marked;
+  const t = dayTotals(day);
+  return t.count > 0 && t.kcal >= minKcal;
+}
+const completeDayKcal = today => targetKcal(baseMaintenance(today).value) * COMPLETE_DAY_RATIO;
+
 // 유지 칼로리 = 평균 섭취 − (하루 체중 변화 × 7700)   ← 노트북 ④
+//   평균 섭취에는 "다 적은 날"만 넣음 (한 끼만 적은 날이 섞이면 평균이 낮아져서 유지 칼로리가 틀어짐)
 function maintenanceInfo(today) {
   const start = addDays(today, -WINDOW_DAYS);                  // 최근 14일 = (start, today]
+  const minKcal = completeDayKcal(today);
   const wdays = weightDays().filter(d => d > start && d <= today);
-  const kdays = [...new Set(data.meals.map(m => m.day))].filter(d => d > start && d < today);
-  const info = { weightDays: wdays.length, kcalDays: kdays.length };
+  const kdays = [...new Set(data.meals.map(m => m.day))]
+    .filter(d => d > start && d < today && dayCounted(d, minKcal));   // 오늘은 아직 덜 먹었으니 빼고, 덜 적은 날도 빼고
+  const base = baseMaintenance(today);
+  const info = { weightDays: wdays.length, kcalDays: kdays.length, base };
   if (wdays.length < MIN_WEIGHT_DAYS || kdays.length < MIN_KCAL_DAYS) {
-    return { ...info, maintenance: INITIAL_MAINTENANCE, fromRecords: false };
+    return { ...info, maintenance: base.value, fromRecords: false };
   }
   const perDay = slope(wdays.map(d => daysBetween(wdays[0], d)), wdays.map(d => data.body[d].w));
   const meanKcal = kdays.reduce((s, d) => s + dayTotals(d).kcal, 0) / kdays.length;
@@ -211,6 +257,42 @@ function setSpeed(v) {
 }
 
 
+function setDayStatus(v) {                                     // "다 적었어" / "덜 적었어" / 자동으로
+  const s = nutritionSettings();
+  const day = ui.day || isoDay();
+  if (v === "auto") delete s.dayStatus[day];
+  else s.dayStatus[day] = v === "complete";
+  s.dirty = true;
+  changed();
+}
+
+function saveBase() {
+  const s = nutritionSettings();
+  const d = ui.baseDraft;
+  const read = id => { const el = document.getElementById(id); return el ? Number(el.value) : NaN; };
+  if (d.mode === "manual") {
+    const k = Math.round(read("b-manual"));
+    if (!(k >= 1000 && k <= 6000)) return alert("유지 칼로리를 1000~6000 사이로 적어 주세요.");
+    s.manualMaintenance = k;
+  } else {
+    const year = Math.round(read("b-year")), height = read("b-height");
+    if (!d.sex || d.activity === null) return alert("성별과 활동 수준을 골라 주세요.");
+    if (!(year >= 1920 && year <= Number(isoDay().slice(0, 4)) - 10)) return alert("출생연도를 확인해 주세요.");
+    if (!(height >= 100 && height <= 230)) return alert("키를 cm로 적어 주세요.");
+    if (document.getElementById("b-weight")) {                  // 체중 기록이 하나도 없으면 오늘 체중으로 저장
+      const w = round1(read("b-weight"));
+      if (!(w > 20 && w < 300)) return alert("체중을 확인해 주세요.");
+      data.body[isoDay()] = { w, synced: false };
+    }
+    s.profile = { sex: d.sex, birthYear: year, height: round1(height), activity: d.activity };
+    s.manualMaintenance = null;                                 // 공식을 고르면 직접 입력은 지움
+  }
+  s.dirty = true;
+  Object.assign(ui, { basePanel: false, baseDraft: null });
+  changed();
+}
+
+
 // ---------- 4. 화면 ----------
 
 // Nutrition: [식단] 칼로리 · 탄단지 · 끼니별 식사  /  [체중] 체중 입력 · 그래프. 위에 날짜 고르기는 둘이 같이 씀
@@ -271,9 +353,13 @@ function calorieCard(day, today) {
   const eaten = dayTotals(day).kcal;
   const current = avg7(today) ?? lastWeightUpTo(today);
   const ratePct = current ? s.kgPerWeek / current * 100 : 0;
+  const b = info.base;
+  const baseText = { manual: "직접 입력한 값",
+    formula: `공식 추정 — 기초대사량 ${kcalText(b.bmr)} × 활동 ${b.factor}`,
+    default: "기본값 — 아래 \"유지 칼로리 정하기\"에서 내 정보를 넣으면 더 정확해요" }[b.source];
   const how = info.fromRecords
-    ? `내 기록으로 계산 — 최근 ${WINDOW_DAYS}일 평균 섭취 ${kcalText(info.meanKcal)}kcal, 체중 주당 ${signed(round1(info.perWeek * 100) / 100)}kg`
-    : `초기값 — 체중 ${info.weightDays}/${MIN_WEIGHT_DAYS}일 · 식사 ${info.kcalDays}/${MIN_KCAL_DAYS}일이 쌓이면 내 기록으로 계산해요`;
+    ? `내 기록으로 계산 — 최근 ${WINDOW_DAYS}일 중 다 적은 날 ${info.kcalDays}일 평균 섭취 ${kcalText(info.meanKcal)}kcal, 체중 주당 ${signed(round1(info.perWeek * 100) / 100)}kg`
+    : `${baseText}. 체중 ${info.weightDays}/${MIN_WEIGHT_DAYS}일 · 다 적은 날 ${info.kcalDays}/${MIN_KCAL_DAYS}일이 쌓이면 내 기록으로 계산해요`;
   return `
     <section class="card pad">
       <div class="card-head static"><b>칼로리</b>
@@ -284,9 +370,63 @@ function calorieCard(day, today) {
       <div class="meter" role="img" aria-label="추천 ${kcalText(target)}kcal 중 ${kcalText(eaten)}kcal">
         <span style="width:${Math.min(100, eaten / target * 100)}%"></span></div>
       <p class="small">${eaten <= target ? `남은 ${kcalText(target - eaten)}kcal` : `추천보다 ${kcalText(eaten - target)}kcal 더 먹음`}</p>
+      ${dayStatusLine(day, today)}
       <p class="small muted">유지 칼로리 ${kcalText(info.maintenance)}kcal (${how})</p>
+      <button class="link small" data-action="n-base">${ui.basePanel ? "유지 칼로리 정하기 ▴" : "유지 칼로리 정하기 ▾"}</button>
+      ${ui.basePanel ? basePanel(today) : ""}
       ${Math.abs(ratePct) > 1 ? `<p class="notice small">⚠️ 주당 체중의 1%보다 빠른 속도예요 (${ratePct.toFixed(1)}%)</p>` : ""}
     </section>`;
+}
+
+// 지난날: 이 날이 유지 칼로리 계산에 들어가는지 + 직접 바꾸기 (오늘은 하루가 안 끝나서 표시 안 함)
+function dayStatusLine(day, today) {
+  if (day >= today || !dayTotals(day).count) return "";
+  const marked = nutritionSettings().dayStatus[day];
+  const counted = dayCounted(day, completeDayKcal(today));
+  const text = marked === true ? "✓ 다 적은 날로 표시했어요 — 유지 칼로리 계산에 넣어요"
+    : marked === false ? "덜 적은 날로 표시했어요 — 유지 칼로리 계산에서 빼요"
+    : counted ? "✓ 다 적은 날 — 유지 칼로리 계산에 넣어요"
+    : "덜 적은 날 같아요 (추천 섭취의 60%보다 적음) — 유지 칼로리 계산에서 빼요";
+  const buttons = marked !== undefined
+    ? `<button class="small" data-action="n-day-status" data-v="auto">자동으로 되돌리기</button>`
+    : counted ? `<button class="small" data-action="n-day-status" data-v="partial">덜 적었어</button>`
+    : `<button class="small" data-action="n-day-status" data-v="complete">다 적었어</button>`;
+  return `<div class="daystatus ${counted ? "" : "partial"}"><span class="small">${text}</span>${buttons}</div>`;
+}
+
+// 처음 유지 칼로리 정하기: 공식(내 정보) 또는 직접 입력
+function basePanel(today) {
+  const s = nutritionSettings();
+  const p = s.profile || {};
+  const d = ui.baseDraft || { mode: s.manualMaintenance ? "manual" : "formula", sex: p.sex || null, activity: p.activity ?? null,
+    "b-year": p.birthYear ?? "", "b-height": p.height ?? "", "b-manual": s.manualMaintenance ?? "", "b-weight": "" };   // 적은 숫자도 기억 (버튼을 눌러 다시 그려도 안 지워지게)
+  ui.baseDraft = d;
+  const w = avg7(today) ?? lastWeightUpTo(today);
+  const choice = (action, value, label, selected) =>
+    `<button class="small ${selected ? "selected" : ""}" data-action="${action}" data-v="${value}">${label}</button>`;
+  const formula = `
+      <p class="label">성별</p>
+      <div class="choices">${choice("n-base-sex", "남", "남", d.sex === "남")}${choice("n-base-sex", "여", "여", d.sex === "여")}</div>
+      <div class="grid3">
+        <label class="mini">출생연도<input id="b-year" type="number" inputmode="numeric" placeholder="2003" value="${d["b-year"]}"></label>
+        <label class="mini">키 (cm)<input id="b-height" type="number" inputmode="decimal" placeholder="175" value="${d["b-height"]}"></label>
+        ${w ? `<label class="mini">체중<span class="mini-value">${w.toFixed(1)}kg (기록)</span></label>`
+            : `<label class="mini">지금 체중 (kg)<input id="b-weight" type="number" inputmode="decimal" placeholder="70" value="${d["b-weight"]}"></label>`}
+      </div>
+      <p class="label">활동 수준</p>
+      <div class="levels">${ACTIVITY_LEVELS.map((a, i) => `
+        <button class="level ${d.activity === i ? "selected" : ""}" data-action="n-base-activity" data-v="${i}">
+          <b>${a.name}</b> <span class="small">× ${a.factor}</span><span class="small">${a.example}</span></button>`).join("")}</div>
+      <p class="small muted">기초대사량은 Mifflin-St Jeor 공식: 10 × 체중 + 6.25 × 키 − 5 × 나이 + (남 5 / 여 −161). 사람마다 오차가 있어서, 기록이 2주 쌓이면 내 기록으로 바꿔 계산해요.</p>`;
+  const manual = `
+      <label class="mini">내 유지 칼로리 (kcal)<input id="b-manual" type="number" inputmode="numeric" placeholder="2500" value="${d["b-manual"]}"></label>
+      <p class="small muted">다른 앱이나 경험으로 이미 알고 있으면 직접 적어요. 이것도 기록이 2주 쌓이면 내 기록으로 바꿔 계산해요.</p>`;
+  return `
+    <div class="panel">
+      <div class="choices">${choice("n-base-mode", "formula", "내 정보로 계산", d.mode === "formula")}${choice("n-base-mode", "manual", "직접 입력", d.mode === "manual")}</div>
+      ${d.mode === "formula" ? formula : manual}
+      <div class="row gap-s"><button class="small primary" data-action="n-base-save">저장</button></div>
+    </div>`;
 }
 
 function macroBar(pcts, label) {                               // 100% 막대 하나 (탄 · 단 · 지 순서, 사이에 2px 틈)
@@ -504,6 +644,9 @@ async function syncNutrition() {
     const { error } = await db.from("nutrition_settings").upsert({
       carb_pct: s.ratio[0], protein_pct: s.ratio[1], fat_pct: s.ratio[2],
       target_kg_per_week: s.kgPerWeek, day_ratios: s.dayRatios, updated_at: new Date().toISOString(),
+      sex: s.profile ? s.profile.sex : null, birth_year: s.profile ? s.profile.birthYear : null,
+      height_cm: s.profile ? s.profile.height : null, activity: s.profile ? s.profile.activity : null,
+      manual_maintenance: s.manualMaintenance, day_status: s.dayStatus,
     });
     if (error) throw error;
     s.dirty = false;
@@ -529,12 +672,15 @@ async function syncNutrition() {
   }
   data.meals = data.meals.filter(m => !m.synced || remoteIds.has(m.id) || justUploaded.has(m.id));
 
-  const { data: rows, error } = await db.from("nutrition_settings").select("carb_pct, protein_pct, fat_pct, target_kg_per_week, day_ratios");
+  const { data: rows, error } = await db.from("nutrition_settings")
+    .select("carb_pct, protein_pct, fat_pct, target_kg_per_week, day_ratios, sex, birth_year, height_cm, activity, manual_maintenance, day_status");
   if (error) throw error;
   if (rows.length && !(data.nutrition && data.nutrition.dirty)) {
     const r = rows[0];
     data.nutrition = { ratio: [r.carb_pct, r.protein_pct, r.fat_pct], kgPerWeek: Number(r.target_kg_per_week),
-      dayRatios: r.day_ratios || {}, dirty: false };
+      dayRatios: r.day_ratios || {}, dirty: false,
+      profile: r.sex ? { sex: r.sex, birthYear: r.birth_year, height: Number(r.height_cm), activity: r.activity } : null,
+      manualMaintenance: r.manual_maintenance, dayStatus: r.day_status || {} };
   }
   save();
 }
@@ -576,11 +722,18 @@ document.addEventListener("click", event => {
     case "n-preset": ui.ratioDraft = v.split(",").map(Number); return render();
     case "n-save-ratio": return saveRatio(v);
     case "n-clear-day": return clearDayRatio();
+    case "n-day-status": return setDayStatus(v);
+    case "n-base": Object.assign(ui, { basePanel: !ui.basePanel, baseDraft: null }); return render();
+    case "n-base-mode": ui.baseDraft.mode = v; return render();
+    case "n-base-sex": ui.baseDraft.sex = v; return render();
+    case "n-base-activity": ui.baseDraft.activity = Number(v); return render();
+    case "n-base-save": return saveBase();
   }
 });
 
 document.addEventListener("input", event => {
   if (event.target.dataset.action === "n-weight") ui.weightDraft = Number(event.target.value);
+  if (ui.baseDraft && /^b-/.test(event.target.id)) ui.baseDraft[event.target.id] = event.target.value;   // 유지 칼로리 칸
 });
 
 document.addEventListener("pointerdown", event => {           // 그래프: 누른 날 보여 주기 / 바깥을 누르면 숨기기
