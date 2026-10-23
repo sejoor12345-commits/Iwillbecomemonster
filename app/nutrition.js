@@ -36,6 +36,7 @@ const MIN_WEIGHT_DAYS = 10;                // 그 기간에 체중 기록이 최
 const MIN_KCAL_DAYS = 7;                   // 그 기간에 식사 기록이 최소 며칠 (오늘은 아직 덜 먹었으니 빼고 셈)
 const KCAL_PER_KG = 7700;                  // 체중 1kg ≈ 7700kcal
 const CHART_DAYS = 30;                     // 체중 그래프에 보여 줄 날 수
+const RECENT_FOODS_SHOWN = 8;              // 음식 추가 칸에 보여 줄 "최근 먹은 것" 개수
 const PLAN_AHEAD_DAYS = 7;                 // 식단을 며칠 뒤까지 미리 적을 수 있는지 (체중은 미래에 못 적음)
 const MEAL_SLOTS = ["아침", "점심", "저녁", "간식"];
 const MACROS = [                           // 1g당 칼로리
@@ -258,6 +259,51 @@ function setSpeed(v) {
   changed();
 }
 
+
+// 최근 먹은 음식 (이름이 같으면 가장 최근 것 하나). filter = 음식 이름 칸에 친 글자
+function recentFoods(filter = "") {
+  const seen = new Map();
+  const q = filter.trim().toLowerCase();
+  const newestFirst = [...data.meals].sort((a, b) => b.day.localeCompare(a.day) || data.meals.indexOf(b) - data.meals.indexOf(a));
+  for (const m of newestFirst) {
+    const key = m.food.toLowerCase();
+    if (seen.has(key) || (q && !key.includes(q))) continue;
+    seen.set(key, m);
+    if (seen.size >= RECENT_FOODS_SHOWN) break;
+  }
+  return [...seen.values()];
+}
+
+function addMealCopy(m, day, slot) {                          // 음식 하나를 그대로 복사해서 넣기
+  data.meals.push({ id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    day, slot, food: m.food, kcal: m.kcal, c: m.c, p: m.p, f: m.f, synced: false });
+}
+
+function quickMeal(food) {                                    // 최근 음식 누르기 → 이 끼니에 바로 추가 (칸은 열어 둠: 여러 개 넣기 좋게)
+  const m = recentFoods().find(x => x.food === food) || [...data.meals].reverse().find(x => x.food === food);
+  if (!m) return;
+  addMealCopy(m, ui.day || isoDay(), ui.mealForm);
+  changed();                                                   // (입력 칸에 커서를 다시 두지 않음: 폰 키보드가 튀어나오지 않게)
+}
+
+function copyPreviousDay() {                                  // 전날 식단을 이 날로 (같은 끼니에)
+  const day = ui.day || isoDay();
+  const from = data.meals.filter(m => m.day === addDays(day, -1));
+  if (!from.length) return;
+  const has = dayTotals(day).count;
+  if (!confirm(`${dayLabel(addDays(day, -1))} 식단 ${from.length}개를 ${dayLabel(day)}에 복사할까요?${has ? ` (지금 있는 ${has}개는 그대로 두고 더해요)` : ""}`)) return;
+  from.forEach(m => addMealCopy(m, day, m.slot));
+  changed();
+}
+
+function recentFoodChips(filter) {
+  const foods = recentFoods(filter);
+  if (!foods.length) return filter ? "" : `<p class="small muted">먹은 음식이 쌓이면 여기서 한 번에 다시 넣을 수 있어요.</p>`;
+  return `<p class="label">최근 먹은 것 — 누르면 바로 추가</p>
+    <div class="food-chips">${foods.map(m => `
+      <button class="food-chip" data-action="n-quick-meal" data-food="${escapeHtml(m.food)}">
+        <b>${escapeHtml(m.food)}</b><span class="small muted">${kcalText(m.kcal)}kcal · 탄 ${num(m.c)} 단 ${num(m.p)} 지 ${num(m.f)}</span></button>`).join("")}</div>`;
+}
 
 function setDayStatus(v) {                                     // "다 적었어" / "덜 적었어" / 자동으로
   const s = nutritionSettings();
@@ -492,8 +538,9 @@ function mealForm(slot) {
       <p class="small muted">칼로리를 비우면 탄×4 + 단×4 + 지×9로 계산해요.</p>
       <div class="row gap-s">
         <button class="small primary" data-action="n-save-meal">${slot}에 추가</button>
-        <button class="small" data-action="n-cancel-meal">취소</button>
+        <button class="small" data-action="n-cancel-meal">닫기</button>
       </div>
+      <div class="recent-foods">${recentFoodChips("")}</div>
     </div>`;
 }
 
@@ -515,9 +562,11 @@ function mealsCard(day) {
       </div>`;
   }).join("");
   const t = dayTotals(day);
+  const prevCount = dayTotals(addDays(day, -1)).count;
   return `
     <section class="card pad">
       <div class="card-head static"><b>식사</b><span class="muted small">${t.count}개 · ${kcalText(t.kcal)}kcal</span></div>
+      ${prevCount ? `<button class="link small" data-action="n-copy-prev">전날(${dayLabel(addDays(day, -1))}) 식단 복사 · ${prevCount}개</button>` : ""}
       ${slots}
     </section>`;
 }
@@ -721,6 +770,8 @@ document.addEventListener("click", event => {
       render();
       return document.getElementById("m-food").focus();
     case "n-cancel-meal": ui.mealForm = null; return render();
+    case "n-quick-meal": return quickMeal(el.dataset.food);
+    case "n-copy-prev": return copyPreviousDay();
     case "n-save-meal": return saveMeal();
     case "n-del-meal": return deleteMeal(el.dataset.id);
     case "n-speed": ui.speedPanel = !ui.speedPanel; return render();
@@ -740,6 +791,10 @@ document.addEventListener("click", event => {
 
 document.addEventListener("input", event => {
   if (event.target.dataset.action === "n-weight") ui.weightDraft = Number(event.target.value);
+  if (event.target.id === "m-food") {                          // 음식 이름을 치면 최근 음식 목록만 걸러서 다시 그림 (입력 칸은 그대로)
+    const box = document.querySelector(".recent-foods");
+    if (box) box.innerHTML = recentFoodChips(event.target.value);
+  }
   if (ui.baseDraft && /^b-/.test(event.target.id)) ui.baseDraft[event.target.id] = event.target.value;   // 유지 칼로리 칸
 });
 
