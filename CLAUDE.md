@@ -29,11 +29,11 @@ For a full review on demand, the owner runs the `tooling-review` skill.
 - Serve locally: `cd app && python3 -m http.server 8772` → http://localhost:8772
 - Syntax check: `node --check app/<file>.js`
 - There is no test suite in the repo. Changes have been verified with ad-hoc Playwright scripts (global `playwright` npm package, Chromium preinstalled) that replace `vendor/supabase-*.js` via `page.route` with a fake client recording calls, seed `localStorage["iwbm-data-v1"]`, and click through `[data-action=...]` buttons. Use iPhone device emulation; for performance checks use CDP `Emulation.setCPUThrottlingRate`.
-- Deploy: Vercel serves `app/` (root `vercel.json` sets `outputDirectory: "app"` and no-cache for `sw.js`). Production tracks the current version branch, so pushing to it deploys.
+- Deploy: Vercel serves `app/` (root `vercel.json` sets `outputDirectory: "app"` and no-cache for `sw.js`). Vercel Production tracks **`main`** (set by the owner, 2026-10-24). Whenever the current version branch is updated and pushed, fast-forward `main` to it and push `main` too (`git push origin v0.5:main`), so the phone app updates without changing Vercel settings. Step branches (e.g. `v0.5-j`) are previews only.
 
 ## Branches and versions
 
-One branch per version (`v0.1` … `v0.5`); each new version branches from the previous one. Work on the current version branch, not `main`. When the app changes, bump **both** `APP_VERSION` in `app/app.js` (shown at the bottom of Home) and `CACHE` in `app/sw.js`; otherwise phones keep the old cached files (stale-while-revalidate) and only show the update on the second open. The README roadmap table tracks version status; update it when a version moves.
+One branch per version (`v0.1` … `v0.5`); each new version branches from the previous one. Work on the current version branch (or a step branch off it), not directly on `main`; `main` only mirrors the latest released version for deployment. When the app changes, bump **both** `APP_VERSION` in `app/app.js` (shown at the bottom of Home) and `CACHE` in `app/sw.js`; otherwise phones keep the old cached files (stale-while-revalidate) and only show the update on the second open. The README roadmap table tracks version status; update it when a version moves.
 
 ## App architecture (`app/`)
 
