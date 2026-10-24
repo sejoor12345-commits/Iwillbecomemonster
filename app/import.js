@@ -106,10 +106,10 @@ function parseMemo(memo) {
 
     const found = line.includes("/") ? parseSuperset(tokens) : parseLine(tokens);
     if (!current || !found) { skipped.push(raw.trim()); continue; }
-    for (const ex of found) {
+    found.forEach((ex, k) => {
       const sets = ex.sets.flatMap(s => Array.from({ length: s.count }, () => ({ w: s.w, r: s.r })));   // 60*10*3 → 3세트
-      current.exercises.push({ name: ex.name, rpe, sets });
-    }
+      current.exercises.push({ name: ex.name, rpe, sets, ...(k < found.length - 1 ? { ss: true } : {}) });   // 슈퍼세트 줄이면 앞 종목을 묶기
+    });
   }
   return { sessions: sessions.filter(s => s.exercises.length), skipped };
 }

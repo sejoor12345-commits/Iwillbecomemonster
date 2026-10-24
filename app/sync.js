@@ -105,7 +105,7 @@ async function uploadWorkout(w) {
 
   // [3] 종목 넣기 → 데이터베이스가 붙여 준 새 id를 받아 옴
   result = await db.from("workout_exercises")
-    .insert(w.exercises.map((e, i) => ({ workout_id: w.id, position: i + 1, name: e.name, rpe: e.rpe, note: e.note || null })))
+    .insert(w.exercises.map((e, i) => ({ workout_id: w.id, position: i + 1, name: e.name, rpe: e.rpe, note: e.note || null, superset: !!e.ss })))
     .select("id, position");
   if (result.error) throw result.error;
   const idOf = {};                                                // position → 새 id   예: {1: 57, 2: 58}
@@ -136,7 +136,7 @@ function toLocalWorkout(row) {
       const last = sets[sets.length - 1] || { w: 0, r: 0 };
       const name = dictionaryName(e.name) || e.name;               // 옛 이름이면 정식 이름으로
       if (name !== e.name) renamed = true;
-      return { name, rpe: e.rpe, ...(e.note ? { note: e.note } : {}), sets, draft: { w: last.w, r: last.r } };
+      return { name, rpe: e.rpe, ...(e.note ? { note: e.note } : {}), ...(e.superset ? { ss: true } : {}), sets, draft: { w: last.w, r: last.r } };
     });
   if (renamed) exercises.splice(0, exercises.length, ...mergeSameName(exercises));   // 바꾼 이름이 겹치면 합치기 (app.js)
   return { id: row.id, split: row.split, start: row.started_at, end: row.ended_at, exercises, synced: !renamed };   // 이름이 바뀌었으면 다시 올리기
@@ -145,7 +145,7 @@ function toLocalWorkout(row) {
 async function downloadAll(justUploaded) {
   // 표 3개를 이름표(id)로 이어서 한 번에 가져오기. RLS 덕분에 내 기록만 온다.
   const { data: rows, error } = await db.from("workouts")
-    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, sets(set_no, weight, reps, done_at))");
+    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, superset, sets(set_no, weight, reps, done_at))");
   if (error) throw error;
 
   const remoteIds = new Set(rows.map(r => r.id));

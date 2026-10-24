@@ -8,7 +8,7 @@
 // [저장 모양] — 노트북처럼 "운동 한 번 → 종목들 → 세트들"
 //   data = {
 //     workouts: [ { id, split: "가슴", start: "2026-10-05T19:00…", end: null 또는 시각,
-//                   exercises: [ { name: "Bench press", rpe: 8 또는 null,
+//                   exercises: [ { name: "Bench press", rpe: 8 또는 null, ss: true = 다음 종목과 슈퍼세트 (없으면 따로),
 //                                  sets: [ { w: 85, r: 8 }, … ],
 //                                  draft: { w: 85, r: 8 } } ] } ],
 //     currentId: 진행 중인 운동의 id (없으면 null),
@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-e.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-f.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -206,15 +206,24 @@ function clock(seconds) {                       // 95 → "1:35",  3725 → "1:0
   return `${h ? h + ":" : ""}${mm}:${String(r).padStart(2, "0")}`;
 }
 
-function lastSetTime(w) {                       // 이 운동에서 가장 최근에 완료한 세트 시각 (없으면 null)
-  const times = w.exercises.flatMap(e => e.sets.map(s => s.t)).filter(Boolean).sort();
-  return times.length ? times[times.length - 1] : null;
+// 슈퍼세트: e.ss = true면 바로 다음 종목과 묶임 (A.ss → A · B,  B.ss도 true면 A · B · C)
+const supersetNext = (w, i) => !!w.exercises[i].ss && i + 1 < w.exercises.length;   // 다음 종목이 이어지나
+function supersetStart(w, i) {                  // 묶음의 첫 종목 번호
+  while (i > 0 && w.exercises[i - 1].ss) i--;
+  return i;
 }
 
-function averageRest(w) {                       // 세트 사이 휴식의 평균(초). 세트가 2개 미만이면 null
-  const times = w.exercises.flatMap(e => e.sets.map(s => s.t)).filter(Boolean).sort().map(t => new Date(t));
-  if (times.length < 2) return null;
-  return (times[times.length - 1] - times[0]) / 1000 / (times.length - 1);
+function doneSets(w) {                          // 완료한 세트를 시각 순서로: [{ t, ss }]  ss = 이 세트 뒤에 묶인 종목이 이어짐
+  return w.exercises.flatMap((e, i) => e.sets.filter(s => s.t).map(s => ({ t: s.t, ss: supersetNext(w, i) })))
+    .sort((a, b) => (a.t < b.t ? -1 : 1));
+}
+
+function averageRest(w) {                       // 세트 사이 휴식의 평균(초). 슈퍼세트 A → B로 넘어간 사이는 휴식이 아님. 없으면 null
+  const done = doneSets(w), rests = [];
+  for (let k = 1; k < done.length; k++) {
+    if (!done[k - 1].ss) rests.push((new Date(done[k].t) - new Date(done[k - 1].t)) / 1000);
+  }
+  return rests.length ? rests.reduce((sum, x) => sum + x, 0) / rests.length : null;
 }
 
 function dateLabel(iso) {                       // "10/05"
@@ -326,6 +335,9 @@ function completeSet(i) {                       // [세트 완료] 또는 [수�
     if (e.sets.length) e.draft = { ...e.sets[e.sets.length - 1] };
   } else {
     e.sets.push(set);                           // 새 세트: 맨 뒤에 추가. ± 칸 값은 그대로 → 다음 세트에 재사용
+    const w = current();
+    if (supersetNext(w, i)) ui.active = i + 1;                       // 슈퍼세트: A를 끝내면 B 펼치기
+    else if (i > 0 && w.exercises[i - 1].ss) ui.active = supersetStart(w, i);   // 묶음 마지막을 끝내면 다시 처음으로
   }
   ui.menu = null;
   save();
@@ -377,10 +389,19 @@ function setRpe(i, value) {
   render();
 }
 
-function removeExercise(i) {
+// 슈퍼세트 묶기 · 풀기: 이 종목과 바로 다음 종목 (다음 종목이 아직 없으면 다음에 추가하는 종목과 묶임)
+function toggleSuperset(i) {
   const e = current().exercises[i];
+  if (e.ss) delete e.ss; else e.ss = true;
+  save();
+  render();
+}
+
+function removeExercise(i) {
+  const exs = current().exercises, e = exs[i];
   if (e.sets.length && !confirm(`${e.name}의 세트 ${e.sets.length}개를 지울까요?`)) return;
-  current().exercises.splice(i, 1);
+  if (i > 0 && exs[i - 1].ss && !e.ss) delete exs[i - 1].ss;        // 묶음의 마지막을 빼면 앞 종목 묶기도 풀기
+  exs.splice(i, 1);
   Object.assign(ui, { active: null, menu: null, edit: null });
   save();
   render();
@@ -399,6 +420,10 @@ function finishWorkout() {
   }
   if (!confirm("운동을 끝낼까요?")) return;
   w.end = new Date().toISOString();
+  w.exercises.forEach((e, i) => {                          // 빠지는 종목과의 슈퍼세트 묶기는 풀기
+    const next = w.exercises[i + 1];
+    if (e.ss && !(next && next.sets.length)) delete e.ss;
+  });
   w.exercises = w.exercises.filter(e => e.sets.length);    // 세트 없는 종목은 정리
   data.currentId = null;
   save();
@@ -537,13 +562,15 @@ function setChips(i, e) {
   }).join("");
 }
 
-function exerciseCard(e, i, split) {
+function exerciseCard(e, i, w) {
+  const split = w.split;
   const open = ui.active === i;
+  const linked = [i > 0 && w.exercises[i - 1].ss ? "ss-prev" : "", supersetNext(w, i) ? "ss-next" : ""].join(" ");   // 슈퍼세트로 붙여 보이기
   const bw = isBodyweight(e.name);
   const summary = e.sets.length ? formatSets(e.name, e.sets) : "아직 세트 없음";
   if (!open) {
     return `
-      <section class="card">
+      <section class="card ${linked}">
         <button class="card-head" data-action="open" data-i="${i}">
           <b>${escapeHtml(e.name)}${e.note ? " ✎" : ""}</b><span class="muted small">${summary}${e.rpe ? " @" + e.rpe : ""}</span>
         </button>
@@ -558,7 +585,7 @@ function exerciseCard(e, i, split) {
         <button data-action="plus" data-i="${i}" data-field="${field}" aria-label="더하기">+</button>
       </div>`;
   return `
-    <section class="card open">
+    <section class="card open ${linked}">
       <div class="card-head static">
         <b>${escapeHtml(e.name)}</b>
         <span class="head-buttons">
@@ -577,6 +604,10 @@ function exerciseCard(e, i, split) {
       <div class="chips">${setChips(i, e)}</div>
       <div class="rpe"><span class="muted small">마지막 세트 RPE</span>
         ${RPE_CHOICES.map(v => `<button class="${e.rpe === v ? "selected" : ""}" data-action="rpe" data-i="${i}" data-v="${v}">${v}</button>`).join("")}
+      </div>
+      <div class="ss-row">
+        <button class="link small" data-action="superset" data-i="${i}">${e.ss ? "슈퍼세트 풀기" : "⛓ 다음 종목과 슈퍼세트"}</button>
+        ${e.ss && !supersetNext(w, i) ? `<span class="muted small">다음에 추가하는 종목과 묶여요</span>` : ""}
       </div>
     </section>`;
 }
@@ -674,7 +705,7 @@ function workoutView() {
       </div>
     </div>
     <main>
-      ${w.exercises.map((e, i) => exerciseCard(e, i, w.split)).join("")}
+      ${w.exercises.map((e, i) => exerciseCard(e, i, w)).join("")}
       ${ui.adding ? addPanel(w) : `<button class="add-button" data-action="open-add">+ 종목 추가</button>`}
     </main>`;
 }
@@ -718,8 +749,10 @@ function tick() {
   const rest = document.getElementById("t-rest");
   if (!w || !total) return;
   total.textContent = clock((Date.now() - new Date(w.start)) / 1000);
-  const last = lastSetTime(w);
-  rest.textContent = last ? clock((Date.now() - new Date(last)) / 1000) : "—";
+  const done = doneSets(w), last = done[done.length - 1];
+  if (!last) rest.textContent = "—";
+  else if (last.ss) rest.textContent = "이어서";                         // 슈퍼세트 중: 휴식은 묶음을 다 끝낸 뒤부터
+  else rest.textContent = clock((Date.now() - new Date(last.t)) / 1000);
 }
 setInterval(tick, 1000);
 
@@ -768,6 +801,7 @@ document.addEventListener("click", event => {
     case "cancel-edit": return cancelEdit();
     case "rpe": return setRpe(i, Number(el.dataset.v));
     case "remove-ex": return removeExercise(i);
+    case "superset": return toggleSuperset(i);
     case "finish": return finishWorkout();
     case "open-summary": Object.assign(ui, { screen: "summary", summaryId: el.dataset.id }); return render();
     case "delete-workout": return deleteWorkout(el.dataset.id);

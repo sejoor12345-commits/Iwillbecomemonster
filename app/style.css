@@ -252,3 +252,9 @@ button.full { width: 100%; margin-top: 4px; }
 .head-buttons { display: inline-flex; flex: none; gap: 12px; white-space: nowrap; }
 .ex-note { margin: 0 0 6px; padding: 4px 8px; border-radius: 6px; background: var(--accent-soft); }
 .last-note { margin: 2px 0 6px; padding: 4px 8px; border-left: 3px solid var(--accent); }
+
+/* v0.5-f 슈퍼세트: 묶인 카드를 붙여 보이기 (왼쪽 굵은 선) */
+.card.ss-next, .card.ss-prev { border-left: 4px solid var(--accent); }
+.card.ss-next { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.card.ss-prev { margin-top: 0; border-top: 1px dashed var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
+.ss-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
