@@ -586,7 +586,7 @@ function mealForm(slot) {
     <div class="mealform">
       <div class="row gap-s">
         <input id="m-food" class="text" placeholder="음식 이름 (예: 홀리닭)" autocomplete="off">
-        <button class="small" data-action="n-db-search">식약처 검색</button>
+        <button class="small" data-action="n-db-search">검색</button>
       </div>
       <div class="db-results">${foodDbResults()}</div>
       <div class="grid4">
