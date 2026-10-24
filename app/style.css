@@ -308,3 +308,8 @@ button.full { width: 100%; margin-top: 4px; }
 input[data-action="n-weight"] { color: var(--c-body); }
 .hero-line .num small { font-size: 0.4em; }
 .prow .pname b { font-size: 17px; }
+
+/* v0.5-k 홈 제목: 작은 "I will become" + 큰 압축 글꼴 "MONSTER." */
+h1.brand { font-family: Anton, "Pretendard Variable", sans-serif; font-weight: 400; font-size: 44px; line-height: 1; letter-spacing: 0.01em; }
+h1.brand small { display: block; font-family: "Pretendard Variable", sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted); margin-bottom: 2px; }
+h1.brand i { font-style: normal; color: var(--accent); }

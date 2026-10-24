@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs>
+<radialGradient id="bg" cx="35%" cy="25%" r="90%"><stop offset="0" stop-color="#2a2d33"/><stop offset="1" stop-color="#0b0c0e"/></radialGradient>
+<linearGradient id="face" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#ff9a5c"/><stop offset=".45" stop-color="#ff5a1f"/><stop offset="1" stop-color="#d9360a"/></linearGradient>
+<linearGradient id="fang" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c7cad1"/></linearGradient>
+<filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="30" stdDeviation="28" flood-color="#000" flood-opacity=".55"/></filter></defs>
+<rect width="1000" height="1000" fill="url(#bg)"/>
+<g filter="url(#sh)">
+ <path d="M425 553 L485 623 Q478 690 466 742 Q440 660 425 553Z" fill="url(#fang)"/><path d="M575 553 L515 623 Q522 690 534 742 Q560 660 575 553Z" fill="url(#fang)"/>
+ <polygon points="190,790 190,220 330,220 500,450 670,220 810,220 810,790 680,790 680,430 500,640 320,430 320,790" fill="#7a2206" transform="translate(0,34)"/>
+ <polygon points="190,790 190,220 330,220 500,450 670,220 810,220 810,790 680,790 680,430 500,640 320,430 320,790" fill="url(#face)"/>
+ <polyline points="190,790 190,220 330,220 500,450 670,220 810,220" fill="none" stroke="#ffc39b" stroke-width="10" stroke-linejoin="miter" opacity=".55"/>
+</g></svg>
