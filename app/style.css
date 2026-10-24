@@ -264,3 +264,7 @@ button.full { width: 100%; margin-top: 4px; }
 .db-results:not(:empty) { margin-top: 8px; }
 .food-chip.selected span { color: var(--accent-text); }
 .mini.grams { margin: 0 0 4px; }
+
+/* v0.5-j 체성분 (인바디) */
+.grid2.comp { margin: 4px 0 8px; gap: 8px; }
+.comp-row { display: grid; grid-template-columns: 3.2em 4.2em 1fr 1fr; align-items: baseline; }

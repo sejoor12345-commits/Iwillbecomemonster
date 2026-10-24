@@ -7,7 +7,7 @@
 //   나가는 것:   🥗 Nutrition 화면 (탭: 식단 / 체중)  +  Supabase 표 3개 올리기 · 받기
 //
 // [저장 모양] app.js의 data 안에 같이 저장
-//   body:  { "2026-10-09": { w: 83.6, synced: false } }                     ← 하루에 체중 하나
+//   body:  { "2026-10-09": { w: 83.6, smm: 36.2, pbf: 17.8, synced: false } }   ← 하루에 체중 하나 (+ 인바디 잰 날만 골격근량 kg · 체지방률 %)
 //   meals: [ { id, day: "2026-10-09", slot: "아침", food, kcal, c, p, f, synced } ]   ← 음식 하나 = 한 줄
 //   nutrition: { ratio: [50, 30, 20], kgPerWeek: -0.5, dayRatios: { "2026-10-12": [60, 20, 20] },
 //                profile: { sex: "남", birthYear: 2003, height: 178, activity: 2 } 또는 null,   ← 공식용 내 정보
@@ -36,6 +36,7 @@ const MIN_WEIGHT_DAYS = 10;                // 그 기간에 체중 기록이 최
 const MIN_KCAL_DAYS = 7;                   // 그 기간에 식사 기록이 최소 며칠 (오늘은 아직 덜 먹었으니 빼고 셈)
 const KCAL_PER_KG = 7700;                  // 체중 1kg ≈ 7700kcal
 const CHART_DAYS = 30;                     // 체중 그래프에 보여 줄 날 수
+const COMP_SHOWN = 10;                     // 체성분(인바디) 기록을 최근 몇 번까지 보여 줄지
 const RECENT_FOODS_SHOWN = 8;              // 음식 추가 칸에 보여 줄 "최근 먹은 것" 개수
 const FOOD_DB_SHOWN = 15;                  // 식약처 검색 결과를 몇 개까지 보여 줄지 (서버 함수 supabase/functions/food-search)
 const PLAN_AHEAD_DAYS = 7;                 // 식단을 며칠 뒤까지 미리 적을 수 있는지 (체중은 미래에 못 적음)
@@ -50,6 +51,8 @@ Object.assign(ui, {
   nutritionTab: "food",  // Nutrition 화면의 탭: food(식단) / weight(체중)
   day: null,             // 보고 있는 날 ("2026-10-09"), null = 오늘
   weightDraft: null,     // 체중 칸에 들어 있는 값
+  compOpen: false,       // 인바디 결과 칸을 펼쳤나
+  compDraft: {},         // 인바디 칸에 친 값 { "c-smm": "36.2", "c-pbf": "17.8" } (다시 그려도 안 지워지게)
   mealForm: null,        // 음식 추가 칸이 열린 끼니 ("아침" …)
   ratioPanel: false,     // 목표 비율 바꾸기 칸
   ratioDraft: null,
@@ -193,11 +196,21 @@ function changed() {                                           // 저장하고, 
 function saveWeight() {
   const day = ui.day || isoDay();
   if (day > isoDay()) return;                                  // 미래 체중은 안 받음
-  const w = round1(Number(ui.weightDraft));
+  const input = document.querySelector('[data-action="n-weight"]');           // 칸에 보이는 값 (± 를 안 눌러도 그대로 저장)
+  const w = round1(Number(input ? input.value : ui.weightDraft));
   if (!(w > 20 && w < 300)) return alert("체중을 확인해 주세요.");
-  data.body[day] = { w, synced: false };
+  // 인바디 결과 (선택): 비우면 없음
+  const comp = {};
+  for (const [key, id, low, high, name] of [["smm", "c-smm", 5, 100, "골격근량"], ["pbf", "c-pbf", 2, 70, "체지방률"]]) {
+    const el = document.getElementById(id);
+    if (!el || el.value.trim() === "") continue;
+    const v = round1(Number(el.value));
+    if (!(v >= low && v <= high)) return alert(`${name} 숫자를 확인해 주세요.`);
+    comp[key] = v;
+  }
+  data.body[day] = { w, ...comp, synced: false };
   data.deletedWeights = data.deletedWeights.filter(d => d !== day);
-  ui.weightDraft = null;
+  Object.assign(ui, { weightDraft: null, compOpen: false, compDraft: {} });
   changed();
 }
 
@@ -408,7 +421,7 @@ function nutritionView() {
     ? (future ? `<p class="notice small">미리 적어 두는 식단이에요. 그날 실제로 다르게 먹으면 그때 고치거나 지우면 돼요.</p>` : "")
       + calorieCard(day, today) + macroCard(day, today) + mealsCard(day)
     : (future ? `<section class="card pad"><p class="muted small">체중은 그날 재고 적어요. 미리 적을 수 있는 건 식단뿐이에요.</p></section>`
-              : weightCard(day)) + weightChart(today);
+              : weightCard(day)) + weightChart(today) + compCard();
   return `
     <header class="bar"><h1>🥗 Nutrition</h1><button class="small" data-action="home">홈</button></header>
     <div class="tabs">
@@ -433,6 +446,36 @@ function nutritionSummary() {
   return `오늘 ${kcalText(dayTotals(today).kcal)} / ${kcalText(target)}kcal · ${w ? `체중 ${num(w.w)}kg` : "체중 아직"}`;
 }
 
+// 인바디 결과 칸 (잰 날만): 골격근량 · 체지방률. 이미 적은 날은 펼쳐서 보여 줌
+function compInputs(rec) {
+  const has = rec && (rec.smm != null || rec.pbf != null);
+  if (!ui.compOpen && !has) return `<button class="link small" data-action="n-comp">+ 인바디 결과 (골격근량 · 체지방률)</button>`;
+  const val = (id, saved) => escapeHtml(String(ui.compDraft[id] ?? (saved != null ? num(saved) : "")));
+  return `
+      <div class="grid2 comp">
+        <label class="mini">골격근량 (kg)<input id="c-smm" type="number" inputmode="decimal" value="${val("c-smm", rec && rec.smm)}"></label>
+        <label class="mini">체지방률 (%)<input id="c-pbf" type="number" inputmode="decimal" value="${val("c-pbf", rec && rec.pbf)}"></label>
+      </div>`;
+}
+
+// 체성분 기록 (인바디를 잰 날만, 최근 → 예전) + 바로 전 기록과의 차이
+function compCard() {
+  const days = Object.keys(data.body).filter(d => data.body[d].smm != null || data.body[d].pbf != null).sort();
+  if (!days.length) return "";
+  const diff = (now, before) => now != null && before != null && now !== before ? ` <span class="muted">(${signed(round1(now - before))})</span>` : "";
+  const rows = days.map((d, i) => {
+    const r = data.body[d], p = i ? data.body[days[i - 1]] : null;
+    return `<div class="hrow small comp-row"><b>${dayLabel(d)}</b><span>${num(r.w)}kg</span>
+      <span>${r.smm != null ? `골격근 ${num(r.smm)}kg${diff(r.smm, p && p.smm)}` : ""}</span>
+      <span>${r.pbf != null ? `체지방 ${num(r.pbf)}%${diff(r.pbf, p && p.pbf)}` : ""}</span></div>`;
+  }).reverse().slice(0, COMP_SHOWN);
+  return `
+    <section class="card pad">
+      <div class="card-head static"><b>체성분 (인바디)</b><span class="muted small">${days.length}번 잼</span></div>
+      <div class="plist">${rows.join("")}</div>
+    </section>`;
+}
+
 function weightCard(day) {
   const rec = data.body[day];
   const draft = ui.weightDraft ?? (rec ? rec.w : lastWeightUpTo(day) ?? 70);
@@ -446,6 +489,7 @@ function weightCard(day) {
         <label><input type="number" inputmode="decimal" step="0.1" value="${num(draft)}" data-action="n-weight"> kg</label>
         <button data-action="n-w-step" data-v="0.1" aria-label="0.1 더하기">+</button>
       </div>
+      ${compInputs(rec)}
       <button class="primary full" data-action="n-save-weight">${rec ? "체중 수정" : "체중 저장"}</button>
       ${a !== null ? `<p class="small muted center">7일 평균 <b class="ink">${a.toFixed(1)}kg</b>${before !== null ? ` · 1주 전보다 ${signed(round1(a - before))}kg` : ""}</p>` : ""}
       ${rec ? `<button class="link danger small" data-action="n-del-weight">이 날 체중 지우기</button>` : ""}
@@ -738,7 +782,8 @@ async function syncNutrition() {
   const days = Object.keys(data.body).filter(d => !data.body[d].synced);
   if (days.length) {
     const { error } = await db.from("body_weights")
-      .upsert(days.map(d => ({ day: d, weight: data.body[d].w, updated_at: new Date().toISOString() })));
+      .upsert(days.map(d => ({ day: d, weight: data.body[d].w, skeletal_muscle_kg: data.body[d].smm ?? null,
+      body_fat_pct: data.body[d].pbf ?? null, updated_at: new Date().toISOString() })));
     if (error) throw error;
     days.forEach(d => { data.body[d].synced = true; justUploaded.add(d); });
     save();
@@ -767,11 +812,12 @@ async function syncNutrition() {
   }
 
   // [3] 받기: 인터넷이 기준. 폰에서 올라가 있던(synced) 것 중 인터넷에 없으면 다른 기기에서 지운 것
-  const remoteBody = await selectAll("body_weights", "day, weight");
+  const remoteBody = await selectAll("body_weights", "day, weight, skeletal_muscle_kg, body_fat_pct");
   const remoteDays = new Set(remoteBody.map(r => r.day));
   for (const r of remoteBody) {
     const local = data.body[r.day];
-    if (!local || local.synced) data.body[r.day] = { w: Number(r.weight), synced: true };
+    if (!local || local.synced) data.body[r.day] = { w: Number(r.weight), synced: true,
+      ...(r.skeletal_muscle_kg != null ? { smm: Number(r.skeletal_muscle_kg) } : {}), ...(r.body_fat_pct != null ? { pbf: Number(r.body_fat_pct) } : {}) };
   }
   for (const d of Object.keys(data.body)) if (data.body[d].synced && !remoteDays.has(d) && !justUploaded.has(d)) delete data.body[d];
 
@@ -811,7 +857,7 @@ document.addEventListener("click", event => {
       return render();
     case "n-tab": Object.assign(ui, { nutritionTab: v, mealForm: null, ratioPanel: false, speedPanel: false }); return render();
     case "n-day":
-      Object.assign(ui, { day: addDays(ui.day || isoDay(), Number(v)), weightDraft: null, mealForm: null, ratioPanel: false });
+      Object.assign(ui, { day: addDays(ui.day || isoDay(), Number(v)), weightDraft: null, compOpen: false, compDraft: {}, mealForm: null, ratioPanel: false });
       if (ui.day === isoDay()) ui.day = null;                     // 오늘 = null
       if (ui.day && ui.day > addDays(isoDay(), PLAN_AHEAD_DAYS)) ui.day = addDays(isoDay(), PLAN_AHEAD_DAYS);
       return render();
@@ -822,6 +868,7 @@ document.addEventListener("click", event => {
       return;
     }
     case "n-save-weight": return saveWeight();
+    case "n-comp": ui.compOpen = true; return render();
     case "n-del-weight": return deleteWeight();
     case "n-add-meal":
       Object.assign(ui, { mealForm: v, foodDb: null });
@@ -851,6 +898,7 @@ document.addEventListener("click", event => {
 
 document.addEventListener("input", event => {
   if (event.target.dataset.action === "n-weight") ui.weightDraft = Number(event.target.value);
+  if (/^c-/.test(event.target.id)) ui.compDraft[event.target.id] = event.target.value;      // 인바디 칸
   if (event.target.id === "m-food") {                          // 음식 이름을 치면 최근 음식 목록만 걸러서 다시 그림 (입력 칸은 그대로)
     const box = document.querySelector(".recent-foods");
     if (box) box.innerHTML = recentFoodChips(event.target.value);
