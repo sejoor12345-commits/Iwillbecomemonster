@@ -1,7 +1,7 @@
 // I will become monster — v0.4-d-1 · e 체중 · 식단 (🥗 Nutrition 화면)
 //
 // [지도]
-//   들어오는 것: 매일 체중, 끼니마다 음식 + 칼로리 + 탄단지 (FatSecret 숫자를 옮겨 적기)
+//   들어오는 것: 매일 체중, 끼니마다 음식 + 칼로리 + 탄단지 (직접 적기 · 최근 먹은 것 · 식약처 DB 검색)
 //   하는 일:     weight_log.ipynb ③~⑤를 JS로 옮긴 것 — 7일 평균, 내 기록으로 유지 칼로리 역산, 추천 섭취
 //                + 그날 탄단지 비율 vs 목표 비율
 //   나가는 것:   🥗 Nutrition 화면 (탭: 식단 / 체중)  +  Supabase 표 3개 올리기 · 받기
@@ -37,6 +37,7 @@ const MIN_KCAL_DAYS = 7;                   // 그 기간에 식사 기록이 최
 const KCAL_PER_KG = 7700;                  // 체중 1kg ≈ 7700kcal
 const CHART_DAYS = 30;                     // 체중 그래프에 보여 줄 날 수
 const RECENT_FOODS_SHOWN = 8;              // 음식 추가 칸에 보여 줄 "최근 먹은 것" 개수
+const FOOD_DB_SHOWN = 15;                  // 식약처 검색 결과를 몇 개까지 보여 줄지 (서버 함수 supabase/functions/food-search)
 const PLAN_AHEAD_DAYS = 7;                 // 식단을 며칠 뒤까지 미리 적을 수 있는지 (체중은 미래에 못 적음)
 const MEAL_SLOTS = ["아침", "점심", "저녁", "간식"];
 const MACROS = [                           // 1g당 칼로리
@@ -55,6 +56,7 @@ Object.assign(ui, {
   speedPanel: false,     // 목표 속도 바꾸기 칸
   basePanel: false,      // 처음 유지 칼로리 정하기 칸 (공식 / 직접 입력)
   baseDraft: null,       // { mode: "formula" | "manual", sex, activity } — 버튼으로 고르는 것만
+  foodDb: null,          // 식약처 검색: { state: "loading" | "done" | "error", items, message, pick: 고른 결과 번호 }
 });
 
 
@@ -220,7 +222,7 @@ function saveMeal() {
     day: ui.day || isoDay(), slot: ui.mealForm, food,
     kcal: Math.round(kcal), c: round1(c), p: round1(p), f: round1(f), synced: false,
   });
-  ui.mealForm = null;
+  Object.assign(ui, { mealForm: null, foodDb: null });
   changed();
 }
 
@@ -308,6 +310,53 @@ function recentFoodChips(filter) {
     <div class="food-chips">${foods.map(m => `
       <button class="food-chip" data-action="n-quick-meal" data-food="${escapeHtml(m.food)}">
         <b>${escapeHtml(m.food)}</b><span class="small muted">${kcalText(m.kcal)}kcal · 탄 ${num(m.c)} 단 ${num(m.p)} 지 ${num(m.f)}</span></button>`).join("")}</div>`;
+}
+
+// ---------- 식약처 식품영양성분 DB 검색 (v0.5-g) ----------
+//   앱 → 우리 Supabase 서버 함수(food-search) → 식약처. 인증키는 서버에만 있음
+//   결과는 "기준량(보통 100g)당" 숫자 → 먹은 양(g)을 넣으면 칸이 그만큼 채워짐 → [추가]
+
+async function searchFoodDb() {
+  const q = document.getElementById("m-food").value.trim();
+  if (!q) return alert("음식 이름을 먼저 적어 주세요. (예: 홀리닭)");
+  const show = foodDb => { ui.foodDb = foodDb; const box = document.querySelector(".db-results"); if (box) box.innerHTML = foodDbResults(); };
+  if (typeof account === "undefined" || !account.user) return show({ state: "error", message: "로그인하면 식약처 DB를 검색할 수 있어요." });
+  if (!navigator.onLine) return show({ state: "error", message: "인터넷이 연결돼야 검색할 수 있어요." });
+  show({ state: "loading", q });
+  const { data: res, error } = await db.functions.invoke("food-search", { body: { q } });
+  if (ui.foodDb?.q !== q) return;                                      // 그새 다른 걸 검색했으면 무시
+  if (error || res?.error) return show({ state: "error", message: "검색이 안 됐어요. 잠시 뒤에 다시 해 주세요." });
+  show({ state: "done", q, items: (res.items || []).slice(0, FOOD_DB_SHOWN), pick: null });
+}
+
+function foodDbResults() {
+  const s = ui.foodDb;
+  if (!s) return "";
+  if (s.state === "loading") return `<p class="small muted">식약처 DB에서 찾는 중…</p>`;
+  if (s.state === "error") return `<p class="small muted">${s.message}</p>`;
+  if (!s.items.length) return `<p class="small muted">"${escapeHtml(s.q)}"은(는) 식약처 DB에 없어요. 포장지 영양성분표를 보고 한 번 적어 두면 "최근 먹은 것"에 계속 나와요.</p>`;
+  return `<p class="label">식약처 DB — 누르고 먹은 양을 적으면 칸이 채워져요</p>
+    <div class="food-chips">${s.items.map((it, i) => `
+      <button class="food-chip ${s.pick === i ? "selected" : ""}" data-action="n-db-pick" data-i="${i}">
+        <b>${escapeHtml(it.name)}</b>
+        <span class="small muted">${it.maker ? escapeHtml(it.maker) + " · " : ""}${num(it.basis)}${it.unit}당 ${kcalText(it.kcal)}kcal · 탄 ${num(round1(it.c))} 단 ${num(round1(it.p))} 지 ${num(round1(it.f))}</span></button>
+      ${s.pick === i ? `<label class="mini grams">먹은 양 (${it.unit})<input id="m-grams" type="number" inputmode="decimal" value="${num(s.grams)}"></label>` : ""}`).join("")}</div>`;
+}
+
+function pickFoodDb(i) {                                     // 결과 하나 고르기 → 먹은 양 기본값 = 제품 한 개 중량 (모르면 기준량)
+  const it = ui.foodDb.items[i];
+  Object.assign(ui.foodDb, { pick: i, grams: it.total || it.basis });
+  document.querySelector(".db-results").innerHTML = foodDbResults();
+  fillFromFoodDb();
+}
+
+function fillFromFoodDb() {                                  // 고른 음식 × 먹은 양 → 음식 · 칼로리 · 탄단지 칸 채우기 (화면은 다시 안 그림)
+  const s = ui.foodDb, it = s.items[s.pick];
+  const k = s.grams / it.basis;
+  const set = (id, v) => { document.getElementById(id).value = v; };
+  set("m-food", `${it.name} ${num(s.grams)}${it.unit}`);
+  set("m-kcal", Math.round(it.kcal * k));
+  set("m-c", round1(it.c * k)); set("m-p", round1(it.p * k)); set("m-f", round1(it.f * k));
 }
 
 function setDayStatus(v) {                                     // "다 적었어" / "덜 적었어" / 자동으로
@@ -535,7 +584,11 @@ function macroCard(day, today) {
 function mealForm(slot) {
   return `
     <div class="mealform">
-      <input id="m-food" class="text" placeholder="음식 이름 (예: 닭가슴살 샐러드)" autocomplete="off">
+      <div class="row gap-s">
+        <input id="m-food" class="text" placeholder="음식 이름 (예: 홀리닭)" autocomplete="off">
+        <button class="small" data-action="n-db-search">검색</button>
+      </div>
+      <div class="db-results">${foodDbResults()}</div>
       <div class="grid4">
         <label class="mini">칼로리<input id="m-kcal" type="number" inputmode="decimal"></label>
         ${MACROS.map((m, i) => `<label class="mini"><i class="sw m${i}"></i>${m.name}(g)<input id="m-${m.key}" type="number" inputmode="decimal"></label>`).join("")}
@@ -771,10 +824,12 @@ document.addEventListener("click", event => {
     case "n-save-weight": return saveWeight();
     case "n-del-weight": return deleteWeight();
     case "n-add-meal":
-      ui.mealForm = v;
+      Object.assign(ui, { mealForm: v, foodDb: null });
       render();
       return document.getElementById("m-food").focus();
-    case "n-cancel-meal": ui.mealForm = null; return render();
+    case "n-cancel-meal": Object.assign(ui, { mealForm: null, foodDb: null }); return render();
+    case "n-db-search": return searchFoodDb();
+    case "n-db-pick": return pickFoodDb(Number(el.dataset.i));
     case "n-quick-meal": return quickMeal(el.dataset.food);
     case "n-copy-prev": return copyPreviousDay();
     case "n-save-meal": return saveMeal();
@@ -799,6 +854,10 @@ document.addEventListener("input", event => {
   if (event.target.id === "m-food") {                          // 음식 이름을 치면 최근 음식 목록만 걸러서 다시 그림 (입력 칸은 그대로)
     const box = document.querySelector(".recent-foods");
     if (box) box.innerHTML = recentFoodChips(event.target.value);
+  }
+  if (event.target.id === "m-grams" && ui.foodDb) {             // 먹은 양을 바꾸면 칸의 숫자만 다시 계산
+    const g = Number(event.target.value);
+    if (g > 0) { ui.foodDb.grams = g; fillFromFoodDb(); }
   }
   if (ui.baseDraft && /^b-/.test(event.target.id)) ui.baseDraft[event.target.id] = event.target.value;   // 유지 칼로리 칸
 });
