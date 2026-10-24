@@ -59,6 +59,7 @@ Object.assign(ui, {
   speedPanel: false,     // 목표 속도 바꾸기 칸
   basePanel: false,      // 처음 유지 칼로리 정하기 칸 (공식 / 직접 입력)
   baseDraft: null,       // { mode: "formula" | "manual", sex, activity } — 버튼으로 고르는 것만
+  freshMeal: null,       // 방금 추가한 음식 id들 (한 번 반짝이고 지움)
   foodDb: null,          // 식약처 검색: { state: "loading" | "done" | "error", items, message, pick: 고른 결과 번호 }
 });
 
@@ -211,6 +212,7 @@ function saveWeight() {
   data.body[day] = { w, ...comp, synced: false };
   data.deletedWeights = data.deletedWeights.filter(d => d !== day);
   Object.assign(ui, { weightDraft: null, compOpen: false, compDraft: {} });
+  if (typeof toast === "function") toast(`${dayLabel(day)} 체중 ${num(w)}kg 저장${comp.smm != null || comp.pbf != null ? " · 인바디 포함" : ""}`);
   changed();
 }
 
@@ -230,12 +232,13 @@ function saveMeal() {
   let kcal = read("m-kcal") === "" ? c * 4 + p * 4 + f * 9 : Number(read("m-kcal"));   // 칼로리를 비우면 탄단지로 계산
   if (!food) return alert("음식 이름을 적어 주세요.");
   if ([kcal, c, p, f].some(x => isNaN(x) || x < 0)) return alert("숫자를 확인해 주세요.");
+  const id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   data.meals.push({
-    id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-    day: ui.day || isoDay(), slot: ui.mealForm, food,
+    id, day: ui.day || isoDay(), slot: ui.mealForm, food,
     kcal: Math.round(kcal), c: round1(c), p: round1(p), f: round1(f), synced: false,
   });
-  Object.assign(ui, { mealForm: null, foodDb: null });
+  if (typeof toast === "function") toast(`${ui.mealForm}에 ${food} 추가 · ${kcalText(kcal)}kcal`);
+  Object.assign(ui, { mealForm: null, foodDb: null, freshMeal: [id] });
   changed();
 }
 
@@ -290,15 +293,17 @@ function recentFoods(filter = "") {
   return [...seen.values()];
 }
 
-function addMealCopy(m, day, slot) {                          // 음식 하나를 그대로 복사해서 넣기
-  data.meals.push({ id: "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-    day, slot, food: m.food, kcal: m.kcal, c: m.c, p: m.p, f: m.f, synced: false });
+function addMealCopy(m, day, slot) {                          // 음식 하나를 그대로 복사해서 넣기 (새 id를 돌려줌)
+  const id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  data.meals.push({ id, day, slot, food: m.food, kcal: m.kcal, c: m.c, p: m.p, f: m.f, synced: false });
+  return id;
 }
 
 function quickMeal(food) {                                    // 최근 음식 누르기 → 이 끼니에 바로 추가 (칸은 열어 둠: 여러 개 넣기 좋게)
   const m = recentFoods().find(x => x.food === food) || [...data.meals].reverse().find(x => x.food === food);
   if (!m) return;
-  addMealCopy(m, ui.day || isoDay(), ui.mealForm);
+  ui.freshMeal = [addMealCopy(m, ui.day || isoDay(), ui.mealForm)];
+  if (typeof toast === "function") toast(`${ui.mealForm}에 ${m.food} 추가 · ${kcalText(m.kcal)}kcal`);
   const typed = ["m-food", "m-kcal", "m-c", "m-p", "m-f"].map(id => [id, document.getElementById(id)?.value ?? ""]);
   changed();                                                   // 다시 그리면 칸이 비니까, 적고 있던 글자를 되돌려 놓음
   for (const [id, value] of typed) { const el = document.getElementById(id); if (el) el.value = value; }
@@ -312,7 +317,8 @@ function copyPreviousDay() {                                  // 전날 식단�
   if (!from.length) return;
   const has = dayTotals(day).count;
   if (!confirm(`${dayLabel(addDays(day, -1))} 식단 ${from.length}개를 ${dayLabel(day)}에 복사할까요?${has ? ` (지금 있는 ${has}개는 그대로 두고 더해요)` : ""}`)) return;
-  from.forEach(m => addMealCopy(m, day, m.slot));
+  ui.freshMeal = from.map(m => addMealCopy(m, day, m.slot));
+  if (typeof toast === "function") toast(`${dayLabel(addDays(day, -1))} 식단 ${from.length}개를 복사했어요`);
   changed();
 }
 
@@ -655,7 +661,7 @@ function mealsCard(day) {
         <div class="slot-head"><b>${slot}</b><span class="muted small">${items.length ? kcalText(kcal) + "kcal" : ""}</span>
           ${ui.mealForm === slot ? "" : `<button class="link small" data-action="n-add-meal" data-v="${slot}">+ 추가</button>`}</div>
         ${items.map(m => `
-          <div class="meal">
+          <div class="meal ${ui.freshMeal && ui.freshMeal.includes(m.id) ? "fresh" : ""}">
             <div><b>${escapeHtml(m.food)}</b>
               <span class="muted small">${kcalText(m.kcal)}kcal · 탄 ${num(m.c)} · 단 ${num(m.p)} · 지 ${num(m.f)}</span></div>
             <button class="link danger small" data-action="n-del-meal" data-id="${m.id}">삭제</button>

@@ -319,3 +319,67 @@ h1.brand i { font-style: normal; color: var(--accent); }
 .ex-thumb { padding: 0; min-height: 0; width: 92px; height: 92px; background: #ffffff; border-radius: 12px; overflow: hidden; }
 .ex-thumb img { display: block; width: 92px; height: 92px; }
 .ex-lines p:first-child { margin-top: 0; }
+
+/* ---------- v0.5-l 효과 ---------- */
+/* 누르는 느낌: 주요 버튼은 눌릴 때 살짝 어두워지고 작아짐 */
+button { transition: transform 0.08s ease, filter 0.08s ease; }
+button:active { transform: scale(0.97); filter: brightness(0.92); }
+button.primary:active { filter: brightness(0.85); }
+
+/* 화면 아래 알림 (탭 바 바로 위) */
+#toast {
+  position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 20;
+  transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+  max-width: calc(100% - 32px); padding: 12px 18px 12px 14px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text); font-size: 15px; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+#toast::before { content: "✓"; display: inline-block; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%;
+  background: var(--c-count); color: #111214; font-size: 14px; font-weight: 900; line-height: 22px; text-align: center; }
+#toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+/* 방금 추가한 세트 칩 · 음식 줄: 한 번 반짝 */
+.chip.fresh { animation: pop 0.6s ease-out; }
+@keyframes pop {
+  0% { transform: scale(0.6); box-shadow: 0 0 0 0 rgba(255, 90, 31, 0.7); }
+  55% { transform: scale(1.15); }
+  100% { transform: scale(1); box-shadow: 0 0 0 14px rgba(255, 90, 31, 0); }
+}
+.meal.fresh { animation: flash-row 1.4s ease-out; border-radius: 10px; }
+@keyframes flash-row { 0% { background: rgba(200, 242, 74, 0.28); } 100% { background: transparent; } }
+
+/* 화면 전체 애니메이션 공통 */
+.fx { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, #22160f 0%, #111214 65%); animation: fx-in 0.2s ease-out; }
+.fx.out { animation: fx-out 0.3s ease-in forwards; }
+@keyframes fx-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fx-out { to { opacity: 0; transform: scale(1.04); } }
+.fx-center { position: relative; z-index: 1; text-align: center; padding: 0 24px; }
+.fx-kicker { margin: 0; font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; }
+.fx-sub { margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+
+/* 운동 시작: 분할 이름이 커졌다가 자리 잡고, 주황 원이 퍼짐 */
+.fx-split { margin: 6px 0 0; font-size: 84px; font-weight: 900; line-height: 1; letter-spacing: -0.04em;
+  animation: slam 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes slam { 0% { transform: scale(2.2); opacity: 0; filter: blur(6px); } 100% { transform: scale(1); opacity: 1; filter: none; } }
+.fx-start .ring { position: absolute; left: 50%; top: 50%; width: 160px; height: 160px; margin: -80px 0 0 -80px; border-radius: 50%;
+  border: 3px solid var(--accent); opacity: 0; animation: ring 1.3s ease-out 0.25s; }
+.fx-start .ring.r2 { animation-delay: 0.45s; border-color: #ff8a57; }
+.fx-start .ring.r3 { animation-delay: 0.65s; border-color: #ffb08f; }
+@keyframes ring { 0% { transform: scale(0.4); opacity: 0.9; } 100% { transform: scale(4.5); opacity: 0; } }
+
+/* 운동 끝: 색종이 + 큰 제목 + 숫자 */
+.fx-title { margin: 6px 0 18px; font-size: 56px; font-weight: 900; letter-spacing: -0.04em; animation: slam 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+.fx-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.fx-stats b { display: block; font-size: 36px; }
+.fx-stats b.c-time { font-size: 26px; line-height: 43px; }
+.fx-stats span { font-size: 13px; color: var(--muted); }
+.confetti i { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; opacity: 0.85;
+  animation-name: fall; animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1); animation-fill-mode: both; }
+@keyframes fall { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(var(--drift), 110vh) rotate(var(--spin)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .chip.fresh, .meal.fresh, .fx, .fx-split, .fx-title { animation: none; }
+  #toast { transition: none; }
+}

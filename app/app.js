@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-l.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -276,6 +276,7 @@ function startWorkout(split) {
   save();
   Object.assign(ui, { screen: "workout", active: null, menu: null, edit: null, adding: true, query: "", focusSearch: true });
   render();
+  if (typeof startSplash === "function") startSplash(split);   // 시작 애니메이션 (effects.js)
 }
 
 function addExercise(name) {
@@ -340,6 +341,8 @@ function completeSet(i) {                       // [세트 완료] 또는 [수�
     if (e.sets.length) e.draft = { ...e.sets[e.sets.length - 1] };
   } else {
     e.sets.push(set);                           // 새 세트: 맨 뒤에 추가. ± 칸 값은 그대로 → 다음 세트에 재사용
+    ui.fresh = { ex: i, set: e.sets.length - 1 };                    // 새 칩을 잠깐 반짝이게
+    if (typeof toast === "function") toast(`${e.name} ${e.sets.length}세트 · ${isBodyweight(e.name) ? set.r + "회" : num(set.w) + "kg × " + set.r}`);
     const w = current();
     if (supersetNext(w, i)) ui.active = i + 1;                       // 슈퍼세트: A를 끝내면 B 펼치기
     else if (i > 0 && w.exercises[i - 1].ss) ui.active = supersetStart(w, i);   // 묶음 마지막을 끝내면 다시 처음으로
@@ -434,6 +437,7 @@ function finishWorkout() {
   save();
   Object.assign(ui, { screen: "summary", summaryId: w.id });
   render();
+  if (typeof finishSplash === "function") finishSplash(w);   // 축하 화면 (effects.js) — 뒤에 요약이 깔려 있음
   if (typeof syncNow === "function") syncNow();              // 로그인돼 있으면 바로 올리기 (sync.js)
 }
 
@@ -579,7 +583,8 @@ function setChips(i, e) {
           <button data-action="edit-set" data-i="${i}" data-j="${j}">수정</button>
           <button class="danger" data-action="delete-set" data-i="${i}" data-j="${j}">삭제</button>
         </span>` : "";
-    return `<span class="chip-wrap"><button class="chip ${editing ? "editing" : ""}" data-action="chip" data-i="${i}" data-j="${j}">${label}</button>${menu}</span>`;
+    const fresh = ui.fresh && ui.fresh.ex === i && ui.fresh.set === j;
+    return `<span class="chip-wrap"><button class="chip ${editing ? "editing" : ""} ${fresh ? "fresh" : ""}" data-action="chip" data-i="${i}" data-j="${j}">${label}</button>${menu}</span>`;
   }).join("");
 }
 
@@ -811,6 +816,7 @@ function render() {
                   exercise: () => exerciseView() };               // exerciseView는 exercise-detail.js에 있음
   if (ui.screen === "workout" && !current()) ui.screen = "workouts";
   document.getElementById("app").innerHTML = views[ui.screen]() + (ui.screen === "login" ? "" : tabBar());
+  ui.fresh = null; ui.freshMeal = null;                      // 새로 추가한 것 반짝임은 한 번만
   const search = document.querySelector('[data-action="search"]');
   tick();
   if (search && ui.focusSearch) {
