@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-d.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-e.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -45,7 +45,10 @@ function mergeSameName(exercises) {
   const out = [];
   for (const e of exercises) {
     const first = out.find(x => x.name === e.name);
-    if (first) { first.sets.push(...e.sets); first.rpe = e.rpe ?? first.rpe; first.draft = e.draft; }
+    if (first) {
+      first.sets.push(...e.sets); first.rpe = e.rpe ?? first.rpe; first.draft = e.draft;
+      if (e.note) first.note = [first.note, e.note].filter(Boolean).join(" / ");
+    }
     else out.push(e);
   }
   return out;
@@ -59,6 +62,13 @@ function canonicalizeData(d) {
     for (const e of w.exercises) {
       const name = dictionaryName(e.name);
       if (name && name !== e.name) { e.name = name; changed = true; }
+    }
+    for (const e of w.exercises) {                           // v0.5-c의 세트 메모 → 종목 메모로 옮기기
+      const notes = e.sets.map((s, j) => s.note ? `${j + 1}세트: ${s.note}` : null).filter(Boolean);
+      if (!notes.length) continue;
+      e.note = [e.note, ...notes].filter(Boolean).join(" / ");
+      e.sets.forEach(s => delete s.note);
+      changed = true;
     }
     if (changed) { w.exercises = mergeSameName(w.exercises); w.synced = false; }
   }
@@ -311,7 +321,6 @@ function completeSet(i) {                       // [세트 완료] 또는 [수�
   const set = { w: isBodyweight(e.name) ? 0 : e.draft.w, r: e.draft.r, t: new Date().toISOString() };   // t = 완료 시각 (휴식 계산용)
   if (ui.edit && ui.edit.ex === i) {
     set.t = e.sets[ui.edit.set].t;              // 수정은 시각을 바꾸지 않음
-    if (e.sets[ui.edit.set].note) set.note = e.sets[ui.edit.set].note;   // 메모도 그대로
     e.sets[ui.edit.set] = set;                  // 수정: 그 자리의 세트를 바꿈 (순서 유지)
     ui.edit = null;
     if (e.sets.length) e.draft = { ...e.sets[e.sets.length - 1] };
@@ -350,19 +359,15 @@ function deleteSet(i, j) {
   render();
 }
 
-// 세트 메모 ("그립 넓게" …): 세트 칩 → 메모. 비우면 지움. 노트북으로 가는 메모 형식에는 안 들어감 (노트북은 숫자만 읽음)
-function noteSet(i, j) {
-  const set = current().exercises[i].sets[j];
-  const text = prompt(`${j + 1}세트 메모 (비우면 지워요)`, set.note || "");
+// 종목 메모 ("그립 넓게" …): 종목 이름 옆 "메모". 비우면 지움. 다음에 같은 분할에서 이 종목을 넣으면 "지난번 메모"로 보임
+//   노트북으로 가는 메모 형식에는 안 들어감 (노트북은 숫자만 읽음)
+function noteExercise(i) {
+  const e = current().exercises[i];
+  const text = prompt(`${e.name} 메모 (비우면 지워요)`, e.note || "");
   if (text === null) return;                                  // 취소
-  if (text.trim()) set.note = text.trim(); else delete set.note;
-  ui.menu = null;
+  if (text.trim()) e.note = text.trim(); else delete e.note;
   save();
   render();
-}
-
-function setNotes(sets) {                       // 메모가 있는 세트만 "2세트: 그립 넓게" 모양으로 (화면에 넣을 글자라 escape)
-  return sets.map((s, j) => s.note ? `${j + 1}세트: ${escapeHtml(s.note)}` : null).filter(Boolean);
 }
 
 function setRpe(i, value) {
@@ -526,11 +531,9 @@ function setChips(i, e) {
     const menu = ui.menu && ui.menu.ex === i && ui.menu.set === j ? `
         <span class="menu">
           <button data-action="edit-set" data-i="${i}" data-j="${j}">수정</button>
-          <button data-action="note-set" data-i="${i}" data-j="${j}">메모</button>
           <button class="danger" data-action="delete-set" data-i="${i}" data-j="${j}">삭제</button>
-          ${s.note ? `<span class="small muted chip-note">${escapeHtml(s.note)}</span>` : ""}
         </span>` : "";
-    return `<span class="chip-wrap"><button class="chip ${editing ? "editing" : ""}" data-action="chip" data-i="${i}" data-j="${j}">${label}${s.note ? " ✎" : ""}</button>${menu}</span>`;
+    return `<span class="chip-wrap"><button class="chip ${editing ? "editing" : ""}" data-action="chip" data-i="${i}" data-j="${j}">${label}</button>${menu}</span>`;
   }).join("");
 }
 
@@ -542,7 +545,7 @@ function exerciseCard(e, i, split) {
     return `
       <section class="card">
         <button class="card-head" data-action="open" data-i="${i}">
-          <b>${escapeHtml(e.name)}</b><span class="muted small">${summary}${e.rpe ? " @" + e.rpe : ""}</span>
+          <b>${escapeHtml(e.name)}${e.note ? " ✎" : ""}</b><span class="muted small">${summary}${e.rpe ? " @" + e.rpe : ""}</span>
         </button>
       </section>`;
   }
@@ -558,10 +561,14 @@ function exerciseCard(e, i, split) {
     <section class="card open">
       <div class="card-head static">
         <b>${escapeHtml(e.name)}</b>
-        <button class="link danger small" data-action="remove-ex" data-i="${i}">종목 빼기</button>
+        <span class="head-buttons">
+          <button class="link small" data-action="note-ex" data-i="${i}">메모</button>
+          <button class="link danger small" data-action="remove-ex" data-i="${i}">종목 빼기</button>
+        </span>
       </div>
+      ${e.note ? `<p class="small ex-note">✎ ${escapeHtml(e.note)}</p>` : ""}
       ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastTimeExercise(split, e.name).rpe ? " @" + lastTimeExercise(split, e.name).rpe : ""}</p>` : ""}
-      ${last ? setNotes(last).map(n => `<p class="small last-note">✎ 지난번 ${n}</p>`).join("") : ""}
+      ${last && lastTimeExercise(split, e.name).note ? `<p class="small last-note">✎ 지난번 메모: ${escapeHtml(lastTimeExercise(split, e.name).note)}</p>` : ""}
       ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(split, e.name)) : ""}
       ${bw ? "" : stepper("w", "kg", e.draft.w)}
       ${stepper("r", "회", e.draft.r)}
@@ -615,15 +622,15 @@ function addPanel(w) {
 }
 
 function pickResults(w) {
-  const q = ui.query.trim().toLowerCase();
+  const q = compactName(ui.query);                           // 띄어쓰기 · 대소문자 무시 (exercises.js)
   const done = new Set(w.exercises.map(e => e.name));
   const lastSame = finishedWorkouts().filter(x => x.split === w.split).pop();
   const suggested = lastSame ? lastSame.exercises.map(e => e.name).filter(n => !done.has(n)) : [];
   // 검색: 정식 이름 · 한국어 이름 · 별명 중 하나라도 맞으면. 별명으로 찾았으면 그 별명을 작게 보여 줌 ("Side lateral raise  SLL")
   const hint = n => {
-    if (!q || n.toLowerCase().includes(q)) return "";
+    if (!q || compactName(n).includes(q)) return "";
     const e = EXERCISES[n];
-    const alias = e && [e.ko, ...e.aliases].find(a => a.toLowerCase().includes(q));
+    const alias = e && [e.ko, ...e.aliases].find(a => compactName(a).includes(q));
     if (alias) return alias;
     return dictionaryName(q) === n ? ui.query.trim() : null;     // 옛 이름을 그대로 쳤을 때 ("Smith SLL"), 아니면 null = 안 맞음
   };
@@ -640,7 +647,7 @@ function pickResults(w) {
       .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
     return names.length ? `<p class="group">${part}</p>${names.map(item).join("")}` : "";
   }).join("");
-  const exact = all.some(n => n.toLowerCase() === q) || !!dictionaryName(q) || done.has(dictionaryName(q));   // 이미 있는 이름이면 "새 종목" 버튼 안 보임
+  const exact = all.some(n => compactName(n) === q) || !!dictionaryName(q) || Object.keys(data.custom).some(n => compactName(n) === q);   // 이미 있는 이름이면 "새 종목" 버튼 안 보임
   return `
       ${q && !exact ? `<button class="pick new" data-action="pick" data-name="${escapeHtml(ui.query.trim())}">+ "${escapeHtml(ui.query.trim())}" 새 종목으로 추가</button>` : ""}
       ${!q && suggested.length ? `<p class="group">지난번 ${w.split}에서 한 종목</p>${suggested.map(item).join("")}` : ""}
@@ -684,8 +691,8 @@ function summaryView() {
         <div><b>${duration(w)}</b><span>운동 시간</span></div>
       </div>
       ${averageRest(w) ? `<p class="muted small center">세트 사이 평균 휴식 ${clock(averageRest(w))}</p>` : ""}
-      ${w.exercises.some(e => setNotes(e.sets).length) ? `<h2>세트 메모</h2>${w.exercises.map(e => setNotes(e.sets)
-        .map(n => `<p class="small"><b>${escapeHtml(e.name)}</b> ${n}</p>`).join("")).join("")}` : ""}
+      ${w.exercises.some(e => e.note) ? `<h2>메모</h2>${w.exercises.filter(e => e.note)
+        .map(e => `<p class="small"><b>${escapeHtml(e.name)}</b> ${escapeHtml(e.note)}</p>`).join("")}` : ""}
       <h2>메모 형식</h2>
       <textarea readonly rows="${w.exercises.length + 2}">${escapeHtml(toMemo(w))}</textarea>
       <button class="primary" data-action="copy">복사하기</button>
@@ -757,7 +764,7 @@ document.addEventListener("click", event => {
     case "chip": return openMenu(i, j);
     case "edit-set": return editSet(i, j);
     case "delete-set": return deleteSet(i, j);
-    case "note-set": return noteSet(i, j);
+    case "note-ex": return noteExercise(i);
     case "cancel-edit": return cancelEdit();
     case "rpe": return setRpe(i, Number(el.dataset.v));
     case "remove-ex": return removeExercise(i);

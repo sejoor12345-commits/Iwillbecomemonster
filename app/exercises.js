@@ -93,14 +93,18 @@ const DAYS = ["가슴", "등", "어깨", "하체"];                       // 4�
 const DEFAULT_SETTING = { part: "미분류", range: [8, 12], step: 5 };  // 사전에 없는 종목
 
 
-// 소문자 이름 → 정식 이름 (정식 이름 · 한국어 이름 · 별명 · 옛 이름 모두)
+// 이름 비교용: 소문자 + 띄어쓰기 · "-" 빼기.  "Bench Press" → "benchpress", "레그 컬" → "레그컬"
+//   → 띄어쓰기를 안 하거나 다르게 해도 같은 종목으로 찾음
+const compactName = s => String(s).toLowerCase().replace(/[\s\-]/g, "");
+
+// 비교용 이름 → 정식 이름 (정식 이름 · 한국어 이름 · 별명 · 옛 이름 모두)
 const NAME_INDEX = {};
 for (const [name, e] of Object.entries(EXERCISES)) {
-  for (const n of [name, e.ko, ...e.aliases]) NAME_INDEX[n.toLowerCase()] = name;
+  for (const n of [name, e.ko, ...e.aliases]) NAME_INDEX[compactName(n)] = name;
 }
-for (const [old, name] of Object.entries(LEGACY_NAMES)) NAME_INDEX[old.toLowerCase()] = name;
+for (const [old, name] of Object.entries(LEGACY_NAMES)) NAME_INDEX[compactName(old)] = name;
 
-// 사전에 있는 종목이면 정식 이름, 없으면 null.  "bb row" → "Barbell row", "사레레" → "Side lateral raise"
+// 사전에 있는 종목이면 정식 이름, 없으면 null.  "bb row" → "Barbell row", "사레레" → "Side lateral raise", "benchpress" → "Bench press"
 function dictionaryName(raw) {
-  return NAME_INDEX[String(raw).trim().replace(/\s+/g, " ").toLowerCase()] || null;
+  return NAME_INDEX[compactName(raw)] || null;
 }

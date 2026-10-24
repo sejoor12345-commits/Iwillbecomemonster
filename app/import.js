@@ -15,8 +15,8 @@
 function canonicalName(raw) {
   const fromDictionary = dictionaryName(raw);
   if (fromDictionary) return fromDictionary;
-  const lower = raw.trim().toLowerCase();
-  const mine = Object.keys(data.custom).find(n => n.toLowerCase() === lower);
+  const key = compactName(raw);
+  const mine = Object.keys(data.custom).find(n => compactName(n) === key);   // 띄어쓰기 · 대소문자만 다른 내 종목
   return mine || raw.trim();
 }
 
