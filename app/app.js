@@ -7,7 +7,7 @@
 //
 // [저장 모양] — 노트북처럼 "운동 한 번 → 종목들 → 세트들"
 //   data = {
-//     workouts: [ { id, split: "가슴", start: "2026-10-05T19:00…", end: null 또는 시각,
+//     workouts: [ { id, split: "가슴" 또는 "가슴+등", start: "2026-10-05T19:00…", end: null 또는 시각,
 //                   exercises: [ { name: "Bench press", rpe: 8 또는 null, ss: true = 다음 종목과 슈퍼세트 (없으면 따로),
 //                                  sets: [ { w: 85, r: 8 }, … ],
 //                                  draft: { w: 85, r: 8 } } ] } ],
@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-f.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-h.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -106,6 +106,7 @@ const ui = {
   summaryId: null,       // 요약 화면에 보여 줄 운동
   focusSearch: false,    // 다시 그린 뒤 검색칸에 커서를 둘지
   form: null,            // 새 종목 / 종목 수정 칸 { name, part, bodyweight, step, editing }
+  pickSplits: [],        // 운동 시작 전에 고른 분할들 (["가슴", "등"] → "가슴+등")
 };
 
 
@@ -128,17 +129,19 @@ function finishedWorkouts() {                   // 끝난 운동, 오래된 것 
 }
 
 // 같은 분할의 지난번 운동에서 이 종목 (없으면 null) → { name, rpe, sets }
-function lastTimeExercise(split, name) {
-  const past = finishedWorkouts().filter(w => w.split === split).reverse();
-  for (const w of past) {
-    const ex = w.exercises.find(e => e.name === name && e.sets.length);
+//   w = 지금 운동. 분할은 종목마다 exerciseSplit으로 정함 ("가슴+등" 날의 Bench press → 지난 가슴 날과 이어짐)
+function lastTimeExercise(w, name) {
+  const split = exerciseSplit(w, name);
+  const past = finishedWorkouts().filter(x => x !== w && exerciseSplit(x, name) === split).reverse();
+  for (const x of past) {
+    const ex = x.exercises.find(e => e.name === name && e.sets.length);
     if (ex) return ex;
   }
   return null;
 }
 
-function lastTimeSets(split, name) {
-  const ex = lastTimeExercise(split, name);
+function lastTimeSets(w, name) {
+  const ex = lastTimeExercise(w, name);
   return ex ? ex.sets : null;
 }
 
@@ -162,8 +165,8 @@ function nextWeight(weight, reps, low, high, step, rpe) {
 }
 
 // 지난번 기록 → { weight, reason } (지난번 기록이 없으면 null)
-function suggestion(split, name) {
-  const last = lastTimeExercise(split, name);
+function suggestion(w, name) {
+  const last = lastTimeExercise(w, name);
   if (!last) return null;
   const weights = last.sets.map(s => s.w);                          // [14, 12, 12, 12]
   const top = Math.max(...weights);                                 // 가장 무거운 무게 = 본 세트
@@ -177,10 +180,10 @@ function suggestion(split, name) {
 }
 
 // 새 종목을 추가할 때 ± 칸에 처음 넣을 값: 제안 무게 + 지난번 첫 세트 횟수 → 없으면 기본값
-function initialDraft(split, name) {
-  const last = lastTimeSets(split, name);
+function initialDraft(w, name) {
+  const last = lastTimeSets(w, name);
   if (!last) return { w: isBodyweight(name) ? 0 : 20, r: settingOf(name).range[1] };
-  const next = suggestion(split, name);
+  const next = suggestion(w, name);
   return { w: next.weight, r: isBodyweight(name) ? last[0].r + 1 : last[0].r };   // 맨몸은 1회 더
 }
 
@@ -251,12 +254,14 @@ function formatSets(name, sets) {
 }
 
 // 운동 한 번 → "가슴 10/05\n◦ Bench press: 85*8,8,7 @8\n…"
+//   여러 분할을 같이 한 날("가슴+등")은 분할마다 따로 적음 → 노트북은 분할 하나짜리 운동 두 개로 읽음
 function toMemo(w) {
-  const lines = [`${w.split} ${dateLabel(w.start)}`];       // 노트북은 줄 맨 앞 '가슴'만 봄 → 날짜는 참고용
-  for (const e of w.exercises) {
-    if (!e.sets.length) continue;
-    const rpe = e.rpe ? ` @${e.rpe}` : "";
-    lines.push(`◦ ${e.name}: ${formatSets(e.name, e.sets)}${rpe}`);
+  const lines = [];
+  for (const split of splitsOf(w.split)) {
+    const mine = w.exercises.filter(e => e.sets.length && exerciseSplit(w, e.name) === split);
+    if (!mine.length) continue;
+    lines.push(`${split} ${dateLabel(w.start)}`);                 // 노트북은 줄 맨 앞 '가슴'만 봄 → 날짜는 참고용
+    for (const e of mine) lines.push(`◦ ${e.name}: ${formatSets(e.name, e.sets)}${e.rpe ? ` @${e.rpe}` : ""}`);
   }
   return lines.join("\n");
 }
@@ -280,7 +285,7 @@ function addExercise(name) {
     return openForm(name, false);
   }
   const w = current();
-  w.exercises.push({ name, rpe: null, sets: [], draft: initialDraft(w.split, name) });
+  w.exercises.push({ name, rpe: null, sets: [], draft: initialDraft(w, name) });
   Object.assign(ui, { active: w.exercises.length - 1, adding: false, query: "", menu: null, edit: null });
   save();
   render();
@@ -292,7 +297,7 @@ function openForm(name, editing) {
   const old = data.custom[name];
   ui.form = {
     name, editing,
-    part: old && old.part !== "미분류" ? old.part : current().split,   // 기본값 = 오늘 분할
+    part: old && old.part !== "미분류" ? old.part : partOrder(current().split)[0],   // 기본값 = 오늘 분할의 첫 부위
     bodyweight: old ? old.step === 0 : false,
     step: old && old.step ? old.step : 5,
   };
@@ -531,8 +536,9 @@ function workoutsView() {
       </button>`).join("")
     : `<p class="muted">아직 기록이 없어요. 위에서 분할을 골라 시작하세요.</p>`;
   const body = tab === "log" ? `
-      <h2>오늘 분할은?</h2>
-      <div class="grid2">${DAYS.map(d => `<button class="big" data-action="start" data-split="${d}">${d}</button>`).join("")}</div>
+      <h2>오늘 분할은? <span class="muted small">여러 개 같이 골라도 돼요</span></h2>
+      <div class="grid2">${DAYS.map(d => `<button class="big ${ui.pickSplits.includes(d) ? "selected" : ""}" data-action="pick-split" data-split="${d}">${d}</button>`).join("")}</div>
+      <button class="primary wide" data-action="start" ${ui.pickSplits.length ? "" : "disabled"}>${ui.pickSplits.length ? `${ui.pickSplits.join("+")} 시작` : "분할을 골라 주세요"}</button>
       <h2>지난 운동</h2>
       ${list}
       <div class="row gap">
@@ -563,7 +569,7 @@ function setChips(i, e) {
 }
 
 function exerciseCard(e, i, w) {
-  const split = w.split;
+  const split = exerciseSplit(w, e.name);
   const open = ui.active === i;
   const linked = [i > 0 && w.exercises[i - 1].ss ? "ss-prev" : "", supersetNext(w, i) ? "ss-next" : ""].join(" ");   // 슈퍼세트로 붙여 보이기
   const bw = isBodyweight(e.name);
@@ -576,7 +582,8 @@ function exerciseCard(e, i, w) {
         </button>
       </section>`;
   }
-  const last = lastTimeSets(split, e.name);
+  const last = lastTimeSets(w, e.name);
+  const lastEx = lastTimeExercise(w, e.name);
   const editing = ui.edit && ui.edit.ex === i;
   const stepper = (field, unit, value) => `
       <div class="stepper">
@@ -594,9 +601,9 @@ function exerciseCard(e, i, w) {
         </span>
       </div>
       ${e.note ? `<p class="small ex-note">✎ ${escapeHtml(e.note)}</p>` : ""}
-      ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastTimeExercise(split, e.name).rpe ? " @" + lastTimeExercise(split, e.name).rpe : ""}</p>` : ""}
-      ${last && lastTimeExercise(split, e.name).note ? `<p class="small last-note">✎ 지난번 메모: ${escapeHtml(lastTimeExercise(split, e.name).note)}</p>` : ""}
-      ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(split, e.name)) : ""}
+      ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastEx.rpe ? " @" + lastEx.rpe : ""}</p>` : ""}
+      ${last && lastEx.note ? `<p class="small last-note">✎ 지난번 메모: ${escapeHtml(lastEx.note)}</p>` : ""}
+      ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(w, e.name)) : ""}
       ${bw ? "" : stepper("w", "kg", e.draft.w)}
       ${stepper("r", "회", e.draft.r)}
       <button class="primary" data-action="complete" data-i="${i}">${editing ? `${ui.edit.set + 1}세트 수정 완료 ✓` : "세트 완료 ✓"}</button>
@@ -612,9 +619,9 @@ function exerciseCard(e, i, w) {
     </section>`;
 }
 
-// 부위 순서: 오늘 분할 → 나머지 기본 부위 → 내가 만든 부위 → 미분류
+// 부위 순서: 오늘 분할의 부위 ("팔" → 이두 · 삼두, "가슴+등" → 가슴 · 등) → 나머지 기본 부위 → 내가 만든 부위 → 미분류
 function partOrder(split) {
-  const parts = new Set([split, ...PART_ORDER]);
+  const parts = new Set([...splitsOf(split).flatMap(partsOfSplit), ...PART_ORDER]);
   Object.values(data.custom).forEach(c => parts.add(c.part));
   parts.delete("미분류");
   return [...parts, "미분류"];
@@ -655,8 +662,11 @@ function addPanel(w) {
 function pickResults(w) {
   const q = compactName(ui.query);                           // 띄어쓰기 · 대소문자 무시 (exercises.js)
   const done = new Set(w.exercises.map(e => e.name));
-  const lastSame = finishedWorkouts().filter(x => x.split === w.split).pop();
-  const suggested = lastSame ? lastSame.exercises.map(e => e.name).filter(n => !done.has(n)) : [];
+  // 오늘 분할마다 그 분할을 한 지난번 운동에서, 그 분할 몫의 종목
+  const suggested = [...new Set(splitsOf(w.split).flatMap(split => {
+    const lastSame = finishedWorkouts().filter(x => splitsOf(x.split).includes(split)).pop();
+    return lastSame ? lastSame.exercises.filter(e => exerciseSplit(lastSame, e.name) === split).map(e => e.name) : [];
+  }))].filter(n => !done.has(n));
   // 검색: 정식 이름 · 한국어 이름 · 별명 중 하나라도 맞으면. 별명으로 찾았으면 그 별명을 작게 보여 줌 ("Side lateral raise  SLL")
   const hint = n => {
     if (!q || compactName(n).includes(q)) return "";
@@ -780,7 +790,12 @@ document.addEventListener("click", event => {
   if (!el) return;
   const i = Number(el.dataset.i), j = Number(el.dataset.j);
   switch (el.dataset.action) {
-    case "start": return startWorkout(el.dataset.split);
+    case "pick-split": {                                        // 분할 고르기 · 빼기 (DAYS 순서로 정렬)
+      const s = el.dataset.split;
+      ui.pickSplits = ui.pickSplits.includes(s) ? ui.pickSplits.filter(x => x !== s) : DAYS.filter(d => d === s || ui.pickSplits.includes(d));
+      return render();
+    }
+    case "start": { const split = ui.pickSplits.join("+"); ui.pickSplits = []; return startWorkout(split); }
     case "open-add": Object.assign(ui, { adding: true, query: "", focusSearch: true, form: null }); return render();
     case "close-add": Object.assign(ui, { adding: false, form: null }); return render();
     case "close-form": ui.form = null; return render();

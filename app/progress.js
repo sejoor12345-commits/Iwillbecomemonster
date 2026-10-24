@@ -2,7 +2,7 @@
 //
 // [지도]
 //   들어오는 것: 끝난 운동들 (data.workouts)
-//   하는 일:     (분할, 종목, 날짜)마다 점 하나 = 그날 가장 무거운 무게 (맨몸은 그날 최고 횟수)
+//   하는 일:     (분할, 종목, 날짜)마다 점 하나 — "가슴+등" 날의 종목은 그 종목의 분할 쪽으로 (exerciseSplit) = 그날 가장 무거운 무게 (맨몸은 그날 최고 횟수)
 //                + 노트북 ④ · ⑥의 e1RM(추정 1회 최대)은 그래프 아래에 숫자로만
 //   나가는 것:   분할별 종목 목록 (첫 기록 → 최근) + 누르면 그 종목 그래프 (가로 = 날짜) · 목록에서 숨기기
 //
@@ -23,7 +23,7 @@ function progressSeries(split, name) {
   const bw = isBodyweight(name);
   const byDay = {};
   for (const w of finishedWorkouts()) {
-    if (w.split !== split) continue;
+    if (exerciseSplit(w, name) !== split) continue;
     const sets = w.exercises.filter(e => e.name === name).flatMap(e => e.sets);
     if (!sets.length) continue;
     const day = isoDay(new Date(w.start));
@@ -46,8 +46,8 @@ function progressView() {
   const done = finishedWorkouts();
   if (!done.length) return `<p class="muted">아직 기록이 없어요. 운동을 끝내면 여기에 종목별 그래프가 생겨요.</p>`;
   const sections = DAYS.map(split => {
-    const names = [...new Set(done.filter(w => w.split === split)
-      .flatMap(w => w.exercises.filter(e => e.sets.length).map(e => e.name)))]
+    const names = [...new Set(done
+      .flatMap(w => w.exercises.filter(e => e.sets.length && exerciseSplit(w, e.name) === split).map(e => e.name)))]
       .filter(name => !isHidden(`${split}|${name}`))
       .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
     const rows = names.map(name => ({ name, pts: progressSeries(split, name) }))

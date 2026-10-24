@@ -139,7 +139,7 @@ function planImport(memo) {
     if (s.duplicate) continue;
     for (const e of s.exercises) {
       if (!knownNames.has(e.name) && !newNames[e.name]) {
-        newNames[e.name] = { part: s.split, bodyweight: e.sets.every(x => x.w === 0) };   // 처음 보는 종목: 그날 분할 부위로
+        newNames[e.name] = { part: partsOfSplit(s.split)[0], bodyweight: e.sets.every(x => x.w === 0) };   // 처음 보는 종목: 그날 분할 부위로
       }
     }
   }
