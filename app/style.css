@@ -258,3 +258,9 @@ button.full { width: 100%; margin-top: 4px; }
 .card.ss-next { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .card.ss-prev { margin-top: 0; border-top: 1px dashed var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
 .ss-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+/* v0.5-g 식약처 DB 검색 */
+.mealform .row input.text { flex: 1; min-width: 0; }
+.db-results:not(:empty) { margin-top: 8px; }
+.food-chip.selected span { color: var(--accent-text); }
+.mini.grams { margin: 0 0 4px; }
