@@ -12,7 +12,6 @@
 const GRAPH_MIN_RECORDS = 1;                     // 목록에 보여 줄 최소 기록 횟수 (2로 바꾸면 선이 있는 종목만 나옴)
 const e1rm = (w, r) => round1(w * (1 + r / 30)); // Epley 공식, 소수 첫째 자리 — 노트북 ④와 같은 식
 
-ui.graphOpen = null;                             // 펼쳐진 그래프 ("가슴|Bench press")
 ui.showHidden = false;                           // 숨긴 종목 목록을 펼쳤나
 
 
@@ -58,7 +57,7 @@ function progressView() {
   return `
     ${sections || `<p class="muted">보여 줄 종목이 없어요.</p>`}
     ${hiddenList()}
-    <p class="muted small">점 하나 = 그날 가장 무거운 무게 (맨몸 운동은 그날 최고 횟수). 같은 분할끼리만 이어요. 종목을 누르면 그래프가 열려요.</p>`;
+    <p class="muted small">점 하나 = 그날 가장 무거운 무게 (맨몸 운동은 그날 최고 횟수). 같은 분할끼리만 이어요. 종목을 누르면 그래프 · 자세 · 기록이 열려요.</p>`;
 }
 
 function hiddenList() {
@@ -81,13 +80,11 @@ function progressRow(split, { name, pts }) {
   const unit = bw ? "회" : "kg";
   const values = pts.length < 2 ? `${num(last.v)}${unit}` : `${num(first.v)}${unit} → ${num(last.v)}${unit}`;
   const change = pts.length < 2 ? `<span class="muted">기록 1회</span>` : `<b>${signed(last.v - first.v)}${unit}</b>`;
-  const open = ui.graphOpen === key;
   return `
-    <button class="prow ${open ? "open" : ""}" data-action="graph-open" data-key="${escapeHtml(key)}">
+    <button class="prow" data-action="ex-detail" data-name="${escapeHtml(name)}" data-split="${split}">
       <span class="pname"><b>${escapeHtml(name)}</b>${bw ? `<span class="badge">맨몸 · 최고 횟수</span>` : ""}</span>
       <span class="pval small">${values} · ${change}</span>
-    </button>
-    ${open ? progressChart(name, pts, bw) + progressDetail(key, pts, bw) : ""}`;
+    </button>`;
 }
 
 // 그래프 아래: e1RM 숫자 한 줄 + 설명 + 숨기기
@@ -203,10 +200,8 @@ document.addEventListener("click", event => {
   if (!el) return;
   const key = el.dataset.key;
   switch (el.dataset.action) {
-    case "graph-open": ui.graphOpen = ui.graphOpen === key ? null : key; return render();
     case "graph-hide":
       data.hiddenGraphs.push(key);
-      ui.graphOpen = null;
       return hiddenChanged();
     case "graph-unhide":
       data.hiddenGraphs = data.hiddenGraphs.filter(k => k !== key);

@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5-k.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -496,20 +496,35 @@ function restoreBackup(file) {
 // ---------- 5. 화면 그리기 ----------
 
 // 홈: Workout / Nutrition 두 갈래만. 버튼 안에 최근 상태를 한 줄씩
+// 이번 주(월요일부터) 끝낸 운동
+function thisWeekWorkouts() {
+  const monday = new Date(); monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+  return finishedWorkouts().filter(w => new Date(w.start) >= monday);
+}
+
 function homeView() {
   const last = finishedWorkouts().pop();
   const nutritionLine = typeof nutritionSummary === "function" ? nutritionSummary() : "";   // nutrition.js
+  const week = thisWeekWorkouts();
+  const todayKcal = typeof dayTotals === "function" ? dayTotals(isoDay()).kcal : 0;
   return `
     <header class="bar"><h1>I will become monster</h1></header>
     <main>
+      <h2>이번 주</h2>
+      <div class="stats">
+        <div><b>${week.length}</b><span>운동</span></div>
+        <div><b>${week.reduce((n, w) => n + totalSets(w), 0)}</b><span>세트</span></div>
+        <div><b>${Math.round(todayKcal).toLocaleString("ko-KR")}</b><span>오늘 kcal</span></div>
+      </div>
       <div class="sections">
         <button class="section-button" data-action="workouts">
-          <b>🏋️ Workout</b>
+          <b>운동</b>
           <span class="muted small">분할 운동 기록 · 운동 그래프</span>
           <span class="small">${last ? `지난 운동 ${dateLabel(last.start)} ${last.split}` : "아직 기록 없음"}</span>
         </button>
         <button class="section-button" data-action="nutrition">
-          <b>🥗 Nutrition</b>
+          <b>식단</b>
           <span class="muted small">식단 · 체중</span>
           <span class="small">${nutritionLine}</span>
         </button>
@@ -547,7 +562,7 @@ function workoutsView() {
       </div>` : `
       ${typeof progressView === "function" ? progressView() : ""}`;      // progress.js
   return `
-    <header class="bar"><h1>🏋️ Workout</h1><button class="small" data-action="home">홈</button></header>
+    <header class="bar"><h1>운동</h1></header>
     <div class="tabs">
       <button class="${tab === "log" ? "selected" : ""}" data-action="workout-tab" data-v="log">기록</button>
       <button class="${tab === "graph" ? "selected" : ""}" data-action="workout-tab" data-v="graph">그래프</button>
@@ -613,6 +628,7 @@ function exerciseCard(e, i, w) {
         ${RPE_CHOICES.map(v => `<button class="${e.rpe === v ? "selected" : ""}" data-action="rpe" data-i="${i}" data-v="${v}">${v}</button>`).join("")}
       </div>
       <div class="ss-row">
+        <button class="link small" data-action="ex-detail" data-name="${escapeHtml(e.name)}" data-split="${split}">자세 · 기록</button>
         <button class="link small" data-action="superset" data-i="${i}">${e.ss ? "슈퍼세트 풀기" : "⛓ 다음 종목과 슈퍼세트"}</button>
         ${e.ss && !supersetNext(w, i) ? `<span class="muted small">다음에 추가하는 종목과 묶여요</span>` : ""}
       </div>
@@ -766,13 +782,27 @@ function tick() {
 }
 setInterval(tick, 1000);
 
+// 아래 탭 바: 홈 · 운동 · 식단. 운동 탭은 진행 중인 운동이 있으면 그 운동으로
+const TAB_ICONS = {
+  home: `<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>`,
+  workout: `<svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>`,
+  food: `<svg viewBox="0 0 24 24"><path d="M3 12h18a9 9 0 0 1-18 0zM8 8c0-2 2-2 2-4M13 8c0-2 2-2 2-4"/></svg>`,
+};
+function tabBar() {
+  const on = ui.screen === "home" ? "home" : ui.screen === "nutrition" ? "food" : "workout";
+  const item = (key, action, label) =>
+    `<button class="${on === key ? "on" : ""}" data-action="${action}" aria-label="${label}">${TAB_ICONS[key]}<span>${label}</span></button>`;
+  return `<nav class="tabbar">${item("home", "home", "홈")}${item("workout", "tab-workout", "운동")}${item("food", "nutrition", "식단")}</nav>`;
+}
+
 function render() {
   const views = { home: homeView, workouts: workoutsView, workout: workoutView, summary: summaryView, export: exportView,
                   login: () => loginView(),                       // loginView는 sync.js에 있음
                   import: () => importView(),                     // importView는 import.js에 있음
-                  nutrition: () => nutritionView() };             // nutritionView는 nutrition.js에 있음
+                  nutrition: () => nutritionView(),               // nutritionView는 nutrition.js에 있음
+                  exercise: () => exerciseView() };               // exerciseView는 exercise-detail.js에 있음
   if (ui.screen === "workout" && !current()) ui.screen = "workouts";
-  document.getElementById("app").innerHTML = views[ui.screen]();
+  document.getElementById("app").innerHTML = views[ui.screen]() + (ui.screen === "login" ? "" : tabBar());
   const search = document.querySelector('[data-action="search"]');
   tick();
   if (search && ui.focusSearch) {
@@ -821,6 +851,7 @@ document.addEventListener("click", event => {
     case "open-summary": Object.assign(ui, { screen: "summary", summaryId: el.dataset.id }); return render();
     case "delete-workout": return deleteWorkout(el.dataset.id);
     case "home": ui.screen = "home"; return render();
+    case "tab-workout": ui.screen = current() ? "workout" : "workouts"; return render();
     case "workouts": ui.screen = "workouts"; return render();
     case "workout-tab": ui.workoutTab = el.dataset.v; return render();
     case "export": ui.screen = "export"; return render();

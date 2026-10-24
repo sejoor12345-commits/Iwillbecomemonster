@@ -423,7 +423,7 @@ function nutritionView() {
     : (future ? `<section class="card pad"><p class="muted small">체중은 그날 재고 적어요. 미리 적을 수 있는 건 식단뿐이에요.</p></section>`
               : weightCard(day)) + weightChart(today) + compCard();
   return `
-    <header class="bar"><h1>🥗 Nutrition</h1><button class="small" data-action="home">홈</button></header>
+    <header class="bar"><h1>식단</h1></header>
     <div class="tabs">
       <button class="${tab === "food" ? "selected" : ""}" data-action="n-tab" data-v="food">식단</button>
       <button class="${tab === "weight" ? "selected" : ""}" data-action="n-tab" data-v="weight">체중</button>
