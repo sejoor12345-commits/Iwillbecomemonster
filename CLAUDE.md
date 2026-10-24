@@ -52,4 +52,4 @@ Classic `<script>` tags sharing globals; **load order in `index.html` matters**:
 ## Other folders
 
 - `study/` — offline review notes (HTML + print PDF) generated for the owner; not part of the app or deploy.
-- `.claude/skills/code-reading` (how to teach code reading to this user), `.claude/skills/study-log` (Notion learning-log format), and `.claude/skills/tooling-review` (manual-only tool review). Follow them when the user asks to read code, record progress, or review tooling.
+- `.claude/skills/code-reading` (how to teach code reading to this user), `.claude/skills/study-log` (Notion learning-log format), `.claude/skills/tooling-review` (manual-only tool review), and `.claude/skills/frontend-design` (copied from anthropics/claude-code `plugins/frontend-design`; visual design guidance for UI/UX work). Follow them when the user asks to read code, record progress, review tooling, or improve the UI.
