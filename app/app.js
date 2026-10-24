@@ -513,9 +513,9 @@ function homeView() {
     <main>
       <h2>이번 주</h2>
       <div class="stats">
-        <div><b>${week.length}</b><span>운동</span></div>
-        <div><b>${week.reduce((n, w) => n + totalSets(w), 0)}</b><span>세트</span></div>
-        <div><b>${Math.round(todayKcal).toLocaleString("ko-KR")}</b><span>오늘 kcal</span></div>
+        <div><b class="num c-count">${week.length}<small>회</small></b><span>운동</span></div>
+        <div><b class="num c-lift">${week.reduce((n, w) => n + totalSets(w), 0)}<small>세트</small></b><span>세트</span></div>
+        <div><b class="num c-kcal">${Math.round(todayKcal).toLocaleString("ko-KR")}<small>kcal</small></b><span>오늘 먹은 양</span></div>
       </div>
       <div class="sections">
         <button class="section-button" data-action="workouts">
@@ -726,7 +726,7 @@ function workoutView() {
         <button class="primary small" data-action="finish">운동 끝</button>
       </header>
       <div class="timers">
-        <div><span>전체</span><b id="t-total">0:00</b></div>
+        <div><span>전체</span><b id="t-total" class="c-time">0:00</b></div>
         <div><span>휴식</span><b id="t-rest">—</b></div>
       </div>
     </div>
@@ -743,9 +743,9 @@ function summaryView() {
     <header class="bar"><h1>${dateLabel(w.start)} ${w.split}</h1><button class="small" data-action="workouts">Workout</button></header>
     <main>
       <div class="stats">
-        <div><b>${w.exercises.length}</b><span>종목</span></div>
-        <div><b>${totalSets(w)}</b><span>세트</span></div>
-        <div><b>${duration(w)}</b><span>운동 시간</span></div>
+        <div><b class="num c-count">${w.exercises.length}</b><span>종목</span></div>
+        <div><b class="num c-lift">${totalSets(w)}</b><span>세트</span></div>
+        <div><b class="num c-time">${duration(w)}</b><span>운동 시간</span></div>
       </div>
       ${averageRest(w) ? `<p class="muted small center">세트 사이 평균 휴식 ${clock(averageRest(w))}</p>` : ""}
       ${w.exercises.some(e => e.note) ? `<h2>메모</h2>${w.exercises.filter(e => e.note)

@@ -516,7 +516,7 @@ function calorieCard(day, today) {
         <button class="link small" data-action="n-speed">목표 주당 ${signed(s.kgPerWeek)}kg ▾</button></div>
       ${ui.speedPanel ? `<div class="choices panel">${SPEED_CHOICES.map(v =>
         `<button class="small ${s.kgPerWeek === v ? "selected" : ""}" data-action="n-set-speed" data-v="${v}">${signed(v)}</button>`).join("")}</div>` : ""}
-      <p class="hero-line"><b>${kcalText(eaten)}</b> <span class="muted">/ ${kcalText(target)} kcal</span></p>
+      <p class="hero-line"><b class="num c-kcal">${kcalText(eaten)}<small>kcal</small></b> <span class="muted">/ ${kcalText(target)} kcal</span></p>
       <div class="meter" role="img" aria-label="추천 ${kcalText(target)}kcal 중 ${kcalText(eaten)}kcal">
         <span style="width:${Math.min(100, eaten / target * 100)}%"></span></div>
       <p class="small">${eaten <= target ? `남은 ${kcalText(target - eaten)}kcal` : `추천보다 ${kcalText(eaten - target)}kcal 더 먹음`}</p>

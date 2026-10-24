@@ -136,6 +136,13 @@ button.primary:disabled { background: var(--surface-2); border-color: transparen
 code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--accent-soft); padding: 1px 4px; border-radius: 4px; }
 
 /* ---------- v0.4-d 홈 갈래 · Workout · Nutrition ---------- */
+:root {                                                         /* 숫자 종류마다 색 하나 (애플 피트니스처럼) */
+  --c-count: #c8f24a; --c-lift: #ff5a1f; --c-kcal: #ff3d6e; --c-time: #4fd1ff; --c-body: #6e9bff;
+}
+.num { font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.num small { font-size: 0.5em; font-weight: 700; margin-left: 2px; letter-spacing: 0; text-transform: uppercase; }
+.c-count { color: var(--c-count); } .c-lift { color: var(--c-lift); } .c-kcal { color: var(--c-kcal); }
+.c-time { color: var(--c-time); } .c-body { color: var(--c-body); }
 :root { --m0: #4c8dff; --m1: #f2c14e; --m2: #3ddc97; --dot: #6f737a; --grid: #26292d; }   /* 탄 · 단 · 지 (주황 강조색과 안 겹치게) */
 
 .sections { display: grid; gap: 12px; margin-top: 16px; }
@@ -296,3 +303,8 @@ button.full { width: 100%; margin-top: 4px; }
 .session .top-line { display: flex; justify-content: space-between; gap: 8px; }
 .session .sets { font-size: 18px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .ex-link { margin-top: 6px; }
+
+/* v0.5-k 숫자 색 (종류별) */
+input[data-action="n-weight"] { color: var(--c-body); }
+.hero-line .num small { font-size: 0.4em; }
+.prow .pname b { font-size: 17px; }

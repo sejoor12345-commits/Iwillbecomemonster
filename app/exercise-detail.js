@@ -65,7 +65,7 @@ function detailSummary(s) {
     ${splits.length > 1 ? `<div class="choices">${splits.map(d =>
       `<button class="small ${d === s.split ? "selected" : ""}" data-action="ex-split" data-v="${d}">${d}</button>`).join("")}</div>` : ""}
     ${last ? `
-      <div class="best"><b>${num(last.v)}${bw ? "회" : "kg"}</b><span>${dayLabel(last.day)}</span>
+      <div class="best"><b class="num c-lift">${num(last.v)}<small>${bw ? "회" : "kg"}</small></b><span>${dayLabel(last.day)}</span>
         <span class="muted small">${s.split} · 최근 ${bw ? "최고 횟수" : "최고 무게"}</span></div>
       ${progressChart(s.name, pts, bw)}
       ${progressDetail(`${s.split}|${s.name}`, pts, bw)}`

@@ -79,7 +79,7 @@ function progressRow(split, { name, pts }) {
   const first = pts[0], last = pts[pts.length - 1];
   const unit = bw ? "회" : "kg";
   const values = pts.length < 2 ? `${num(last.v)}${unit}` : `${num(first.v)}${unit} → ${num(last.v)}${unit}`;
-  const change = pts.length < 2 ? `<span class="muted">기록 1회</span>` : `<b>${signed(last.v - first.v)}${unit}</b>`;
+  const change = pts.length < 2 ? `<span class="muted">기록 1회</span>` : `<b class="${last.v > first.v ? "c-count" : ""}">${signed(last.v - first.v)}${unit}</b>`;
   return `
     <button class="prow" data-action="ex-detail" data-name="${escapeHtml(name)}" data-split="${split}">
       <span class="pname"><b>${escapeHtml(name)}</b>${bw ? `<span class="badge">맨몸 · 최고 횟수</span>` : ""}</span>
