@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
   const url = `${API}?serviceKey=${encodeURIComponent(key)}&pageNo=1&numOfRows=${ROWS}&type=json&FOOD_NM_KR=${encodeURIComponent(String(q).trim())}`;
   const res = await fetch(url);
   const text = await res.text();
-  if (raw) return json({ status: res.status, body: text.slice(0, 8000) });       // 확인용: 식약처 원본 그대로
+  if (raw) return json({ status: res.status, keyCheck: `${key.slice(0, 6)}…${key.slice(-4)} (${key.length}자)`, body: text.slice(0, 8000) });   // 확인용: 식약처 원본 그대로 + 키 앞뒤 몇 자만
   let body;
   try { body = JSON.parse(text); } catch { return json({ error: "식약처 응답을 읽지 못했어요" }, 502); }
   const fail = body?.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnAuthMsg;
