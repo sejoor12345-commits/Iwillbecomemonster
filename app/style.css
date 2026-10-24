@@ -313,3 +313,9 @@ input[data-action="n-weight"] { color: var(--c-body); }
 h1.brand { font-family: Anton, "Pretendard Variable", sans-serif; font-weight: 400; font-size: 44px; line-height: 1; letter-spacing: 0.01em; }
 h1.brand small { display: block; font-family: "Pretendard Variable", sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted); margin-bottom: 2px; }
 h1.brand i { font-style: normal; color: var(--accent); }
+
+/* v0.5-k 운동 중 카드: 왼쪽 동작 그림 + 오른쪽 지난번 · 다음 목표 */
+.ex-top.has-gif { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: start; margin-bottom: 4px; }
+.ex-thumb { padding: 0; min-height: 0; width: 92px; height: 92px; background: #ffffff; border-radius: 12px; overflow: hidden; }
+.ex-thumb img { display: block; width: 92px; height: 92px; }
+.ex-lines p:first-child { margin-top: 0; }

@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-k.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.5.3";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -599,6 +599,7 @@ function exerciseCard(e, i, w) {
   }
   const last = lastTimeSets(w, e.name);
   const lastEx = lastTimeExercise(w, e.name);
+  const gif = typeof mediaUrl === "function" ? mediaUrl(e.name) : null;   // 동작 그림 (exercise-media.js)
   const editing = ui.edit && ui.edit.ex === i;
   const stepper = (field, unit, value) => `
       <div class="stepper">
@@ -615,10 +616,17 @@ function exerciseCard(e, i, w) {
           <button class="link danger small" data-action="remove-ex" data-i="${i}">종목 빼기</button>
         </span>
       </div>
-      ${e.note ? `<p class="small ex-note">✎ ${escapeHtml(e.note)}</p>` : ""}
-      ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastEx.rpe ? " @" + lastEx.rpe : ""}</p>` : ""}
-      ${last && lastEx.note ? `<p class="small last-note">✎ 지난번 메모: ${escapeHtml(lastEx.note)}</p>` : ""}
-      ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(w, e.name)) : ""}
+      <div class="ex-top ${gif ? "has-gif" : ""}">
+        ${gif ? `<button class="ex-thumb" data-action="ex-detail" data-name="${escapeHtml(e.name)}" data-split="${split}" aria-label="자세 보기">
+          <img src="${gif}" alt="" width="92" height="92"></button>` : ""}
+        <div class="ex-lines">
+          ${e.note ? `<p class="small ex-note">✎ ${escapeHtml(e.note)}</p>` : ""}
+          ${last ? `<p class="muted small">지난번 ${split}: ${formatSets(e.name, last)}${lastEx.rpe ? " @" + lastEx.rpe : ""}</p>` : ""}
+          ${last && lastEx.note ? `<p class="small last-note">✎ 지난번 메모: ${escapeHtml(lastEx.note)}</p>` : ""}
+          ${last ? (n => `<p class="goal">다음 목표 <b>${bw ? "" : num(n.weight) + "kg · "}</b>${n.reason}</p>`)(suggestion(w, e.name)) : ""}
+          ${!last && gif ? `<p class="muted small">첫 기록이에요. 왼쪽 그림을 누르면 자세 설명이 나와요.</p>` : ""}
+        </div>
+      </div>
       ${bw ? "" : stepper("w", "kg", e.draft.w)}
       ${stepper("r", "회", e.draft.r)}
       <button class="primary" data-action="complete" data-i="${i}">${editing ? `${ui.edit.set + 1}세트 수정 완료 ✓` : "세트 완료 ✓"}</button>
