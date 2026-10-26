@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.6-a.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.6-b.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -129,7 +129,7 @@ function finishedWorkouts() {                   // 끝난 운동, 오래된 것 
 }
 
 // 같은 분할의 지난번 운동에서 이 종목 (없으면 null) → { name, rpe, sets }
-//   w = 지금 운동. 분할은 종목마다 exerciseSplit으로 정함 ("가슴+등" 날의 Bench press → 지난 가슴 날과 이어짐)
+//   w = 지금 운동. 같은 분할 조합끼리만 이어짐 ("어깨+팔" 날은 지난 "어깨+팔" 날과, "팔" 날은 지난 "팔" 날과)
 function lastTimeExercise(w, name) {
   const split = exerciseSplit(w, name);
   const past = finishedWorkouts().filter(x => x !== w && exerciseSplit(x, name) === split).reverse();
@@ -254,14 +254,12 @@ function formatSets(name, sets) {
 }
 
 // 운동 한 번 → "가슴 10/05\n◦ Bench press: 85*8,8,7 @8\n…"
-//   여러 분할을 같이 한 날("가슴+등")은 분할마다 따로 적음 → 노트북은 분할 하나짜리 운동 두 개로 읽음
+//   여러 분할을 같이 한 날은 "어깨+팔 10/26" 한 줄로 시작 (노트북 ①도 "+"로 이어진 분할을 하나의 분할로 읽음)
 function toMemo(w) {
-  const lines = [];
-  for (const split of splitsOf(w.split)) {
-    const mine = w.exercises.filter(e => e.sets.length && exerciseSplit(w, e.name) === split);
-    if (!mine.length) continue;
-    lines.push(`${split} ${dateLabel(w.start)}`);                 // 노트북은 줄 맨 앞 '가슴'만 봄 → 날짜는 참고용
-    for (const e of mine) lines.push(`◦ ${e.name}: ${formatSets(e.name, e.sets)}${e.rpe ? ` @${e.rpe}` : ""}`);
+  const lines = [`${w.split} ${dateLabel(w.start)}`];       // 노트북은 줄 맨 앞 분할 이름만 봄 → 날짜는 참고용
+  for (const e of w.exercises) {
+    if (!e.sets.length) continue;
+    lines.push(`◦ ${e.name}: ${formatSets(e.name, e.sets)}${e.rpe ? ` @${e.rpe}` : ""}`);
   }
   return lines.join("\n");
 }
@@ -691,10 +689,11 @@ function addPanel(w) {
 function pickResults(w) {
   const q = compactName(ui.query);                           // 띄어쓰기 · 대소문자 무시 (exercises.js)
   const done = new Set(w.exercises.map(e => e.name));
-  // 오늘 분할마다 그 분할을 한 지난번 운동에서, 그 분할 몫의 종목
-  const suggested = [...new Set(splitsOf(w.split).flatMap(split => {
-    const lastSame = finishedWorkouts().filter(x => splitsOf(x.split).includes(split)).pop();
-    return lastSame ? lastSame.exercises.filter(e => exerciseSplit(lastSame, e.name) === split).map(e => e.name) : [];
+  // 같은 분할 조합을 한 지난번 운동의 종목. 이 조합이 처음이면 들어 있는 분할 하나하나의 지난번 운동에서
+  const lastSame = finishedWorkouts().filter(x => x.split === w.split).pop();
+  const suggested = [...new Set(lastSame ? lastSame.exercises.map(e => e.name) : splitsOf(w.split).flatMap(split => {
+    const last = finishedWorkouts().filter(x => x.split === split).pop();
+    return last ? last.exercises.map(e => e.name) : [];
   }))].filter(n => !done.has(n));
   // 검색: 정식 이름 · 한국어 이름 · 별명 중 하나라도 맞으면. 별명으로 찾았으면 그 별명을 작게 보여 줌 ("Side lateral raise  SLL")
   const hint = n => {

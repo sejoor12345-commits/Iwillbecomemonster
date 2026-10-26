@@ -94,7 +94,7 @@ function parseMemo(memo) {
     if (["◦", "•", "-"].includes(tokens[0])) tokens = tokens.slice(1);
     if (!tokens.length) continue;
 
-    if (DAYS.includes(tokens[0])) {                                // 분할 줄 → 새 운동 (뒤에 날짜가 있으면 같이)
+    if (isSplitName(tokens[0])) {                                  // 분할 줄 ("가슴", "어깨+팔") → 새 운동 (뒤에 날짜가 있으면 같이)
       current = { split: tokens[0], date: parseDate(tokens[1]), exercises: [] };
       sessions.push(current);
       continue;
@@ -139,7 +139,7 @@ function planImport(memo) {
     if (s.duplicate) continue;
     for (const e of s.exercises) {
       if (!knownNames.has(e.name) && !newNames[e.name]) {
-        newNames[e.name] = { part: partsOfSplit(s.split)[0], bodyweight: e.sets.every(x => x.w === 0) };   // 처음 보는 종목: 그날 분할 부위로
+        newNames[e.name] = { part: partsOfSplit(splitsOf(s.split)[0])[0], bodyweight: e.sets.every(x => x.w === 0) };   // 처음 보는 종목: 그날 분할 부위로
       }
     }
   }

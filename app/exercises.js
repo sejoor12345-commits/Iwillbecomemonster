@@ -89,18 +89,30 @@ const LEGACY_NAMES = {
   "Leg curl": "Lying leg curl",                            // 옛 기록은 라잉
 };
 
-const DAYS = ["가슴", "등", "어깨", "하체", "팔"];                 // 분할 (여러 개를 같이 고르면 "가슴+등"으로 저장)
+const DAYS = ["가슴", "등", "어깨", "하체", "팔"];                 // 분할 (여러 개를 같이 고르면 "가슴+팔"로 저장 = 그 자체로 하나의 분할)
 const SPLIT_PARTS = { "팔": ["이두", "삼두"] };                    // 분할 → 그날 하는 부위 (없으면 분할 이름 = 부위)
 const partsOfSplit = split => SPLIT_PARTS[split] || [split];
 const splitsOf = split => split.split("+");                        // "가슴+등" → ["가슴", "등"]
 
-// 이 운동에서 이 종목은 어느 분할 몫인가: "가슴+등" 날의 Lat pulldown → "등"
-//   → 지난번 기록 · 다음 무게 제안 · 그래프가 분할을 같이 한 날과 따로 한 날을 이어서 봄
+// 이 운동에서 이 종목을 어느 분할로 셀까 = 그날 분할 조합 그대로 (v0.6-b, 사용자 결정)
+//   "어깨+팔" 날의 Barbell curl과 "가슴+팔" 날의 Barbell curl은 무게 · 횟수가 다르니까 따로 이어서 봄
+//   → 지난번 기록 · 다음 무게 제안 · 그래프 · 메모 모두 이 기준
 function exerciseSplit(w, name) {
-  const splits = splitsOf(w.split);
-  if (splits.length === 1) return splits[0];
-  const part = settingOf(name).part;
-  return splits.find(s => partsOfSplit(s).includes(part)) || splits[0];
+  return w.split;
+}
+
+// "어깨+팔" 처럼 DAYS로만 이루어진 이름인가 (메모 가져오기에서 분할 줄 찾기)
+const isSplitName = token => splitsOf(token).every(s => DAYS.includes(s));
+
+// 분할 이름 정렬: 하나짜리(DAYS 순서) 먼저, 그다음 조합 ("가슴+팔" …)
+function sortSplits(list) {
+  const rank = s => splitsOf(s).map(x => DAYS.indexOf(x));
+  return [...new Set(list)].sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    if (ra.length !== rb.length) return ra.length - rb.length;
+    for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
+    return 0;
+  });
 }
 const DEFAULT_SETTING = { part: "미분류", range: [8, 12], step: 5 };  // 사전에 없는 종목
 

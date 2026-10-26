@@ -14,7 +14,8 @@ ui.exDetail = null;                              // { name, split, tab: "summary
 // split = 어느 분할 그래프를 볼지 (null이면 기록이 가장 많은 분할)
 function openExerciseDetail(name, split, from) {
   if (!split) {
-    const counts = DAYS.map(d => [d, progressSeries(d, name).length]).sort((a, b) => b[1] - a[1]);
+    const counts = detailSplits(name).map(d => [d, progressSeries(d, name).length]).sort((a, b) => b[1] - a[1]);
+    if (!counts.length) counts.push([null, 0]);
     split = counts[0][1] ? counts[0][0] : null;
   }
   ui.exDetail = { name, split, tab: "summary", from };
@@ -25,7 +26,7 @@ function openExerciseDetail(name, split, from) {
 
 // 이 종목을 한 분할들 (그래프 고르기용)
 function detailSplits(name) {
-  return DAYS.filter(d => progressSeries(d, name).length);
+  return sortSplits(finishedWorkouts().filter(w => w.exercises.some(e => e.name === name && e.sets.length)).map(w => w.split));
 }
 
 function exerciseView() {
