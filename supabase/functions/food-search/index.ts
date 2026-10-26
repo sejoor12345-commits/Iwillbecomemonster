@@ -2,12 +2,13 @@
 //
 // [지도]
 //   들어오는 것: 앱이 보낸 { q: "홀리닭" }  (로그인한 사람만: verify_jwt)
-//   하는 일:     비밀값 FOOD_API_KEY(공공데이터포털 인증키)를 붙여서 식약처 API에 물어보기
+//   하는 일:     비밀값 FOOD_API_KEY(공공데이터포털 인증키)를 붙여서 식약처 API(03판)에 물어보기
+//                칸: AMT_NUM1 열량 · 3 단백질 · 4 지방 · 6 탄수화물 (100g당), Z10500 제품 중량 — 허닭 도시락으로 검산함
 //                → 앱이 쓰기 쉬운 모양으로 정리 (키는 앱에 절대 안 보냄)
 //   나가는 것:   { items: [ { name, maker, basis: 100, unit: "g", total: 200, kcal, c, p, f } ] }
 //                basis = 영양성분 기준량 (보통 100g), total = 제품 한 개 중량 (모르면 null)
 
-const API = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02";
+const API = "https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo03/getFoodNtrCpntDbInq03";
 const ROWS = 30;                                         // 한 번에 받아 올 결과 수
 
 const cors = {
@@ -22,7 +23,7 @@ function amountOf(text: unknown) {
   const m = /([\d.]+)\s*(g|ml|mL)/.exec(String(text ?? ""));
   return m ? { amount: Number(m[1]), unit: m[2].toLowerCase() } : null;
 }
-const n = (x: unknown) => { const v = parseFloat(String(x ?? "")); return isNaN(v) ? 0 : v; };
+const n = (x: unknown) => { const v = parseFloat(String(x ?? "").replace(/,/g, "")); return isNaN(v) ? 0 : v; };   // "2,373.000" → 2373
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
