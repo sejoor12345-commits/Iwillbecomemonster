@@ -383,3 +383,16 @@ button.primary:active { filter: brightness(0.85); }
   .chip.fresh, .meal.fresh, .fx, .fx-split, .fx-title { animation: none; }
   #toast { transition: none; }
 }
+
+/* ---------- v0.6-a 음식 g · 고치기 · 내 음식 ---------- */
+.meal[data-action] { cursor: pointer; border-radius: 10px; }
+.meal[data-action]:active { background: var(--surface-2); }
+.meal-edit { margin: 6px 0; padding: 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--accent); }
+.meal-edit .mini { margin-top: 8px; }
+.meal-edit .mini input, .myfood .mini input, .myfood input.text { background: var(--surface); }
+.mealform > .mini { margin-top: 8px; }
+.pick-note:empty { display: none; }
+.pick-note { color: var(--c-count); }
+.myfood { margin-top: 8px; }
+.myfood .grid3 { margin-top: 6px; }
+.food-chip .badge { color: var(--c-count); border-color: var(--c-count); }

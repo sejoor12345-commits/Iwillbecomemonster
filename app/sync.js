@@ -39,7 +39,7 @@ async function initAccount() {
 // 동기화 결과를 화면에 반영. 글을 적는 중인 칸(식사 추가 · 비율 바꾸기)이 열려 있으면 지워지지 않게 그리지 않음
 function refreshIfSafe() {
   if (["home", "workouts"].includes(ui.screen)) render();
-  if (ui.screen === "nutrition" && !ui.mealForm && !ui.ratioPanel) render();
+  if (ui.screen === "nutrition" && !ui.mealForm && !ui.ratioPanel && !ui.editMeal) render();
 }
 
 async function signIn(email, password) {

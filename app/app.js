@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.5-l.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.6-a.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -37,7 +37,7 @@ function load() {
 
 // 나중 버전에서 늘어난 칸들의 빈 값 (예전에 저장된 data에는 이 칸이 없음)
 function EMPTY_EXTRAS() {
-  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false, deletedCustoms: [] };
+  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false, deletedCustoms: [], myFoods: {}, myFoodsDirty: false };
 }
 
 // 이름을 바꾸다 보면 한 운동 안에 같은 종목이 둘 생길 수 있음 ("SLL" + "Lateral raise") → 앞 것에 세트를 합침

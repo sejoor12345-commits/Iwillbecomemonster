@@ -8,7 +8,9 @@
 //
 // [저장 모양] app.js의 data 안에 같이 저장
 //   body:  { "2026-10-09": { w: 83.6, smm: 36.2, pbf: 17.8, synced: false } }   ← 하루에 체중 하나 (+ 인바디 잰 날만 골격근량 kg · 체지방률 %)
-//   meals: [ { id, day: "2026-10-09", slot: "아침", food, kcal, c, p, f, synced } ]   ← 음식 하나 = 한 줄
+//   meals: [ { id, day: "2026-10-09", slot: "아침", food, kcal, c, p, f, g, synced } ]   ← 음식 하나 = 한 줄 (g = 먹은 양, 모르면 없음)
+//   myFoods: { "홀리닭 스테이크": { basis: 100, unit: "g", total: 100, kcal, c, p, f } }    ← 직접 등록한 음식 (기준량당 숫자)
+//   myFoodsDirty: true = 아직 인터넷(my_foods 표)에 안 올림
 //   nutrition: { ratio: [50, 30, 20], kgPerWeek: -0.5, dayRatios: { "2026-10-12": [60, 20, 20] },
 //                profile: { sex: "남", birthYear: 2003, height: 178, activity: 2 } 또는 null,   ← 공식용 내 정보
 //                manualMaintenance: 2750 또는 null,                                          ← 직접 입력한 유지 칼로리
@@ -60,6 +62,9 @@ Object.assign(ui, {
   basePanel: false,      // 처음 유지 칼로리 정하기 칸 (공식 / 직접 입력)
   baseDraft: null,       // { mode: "formula" | "manual", sex, activity } — 버튼으로 고르는 것만
   freshMeal: null,       // 방금 추가한 음식 id들 (한 번 반짝이고 지움)
+  mealPick: null,        // 추가 칸에서 고른 음식 (기준량당 숫자) → 먹은 양을 바꾸면 비율대로 다시 계산
+  myFoodForm: false,     // "직접 등록" 칸이 열려 있나
+  editMeal: null,        // 고치고 있는 음식 id
   foodDb: null,          // 식약처 검색: { state: "loading" | "done" | "error", items, message, pick: 고른 결과 번호 }
 });
 
@@ -228,17 +233,18 @@ function deleteWeight() {
 function saveMeal() {
   const read = id => document.getElementById(id).value.trim();
   const food = read("m-food");
+  const g = Number(read("m-g") || 0);
   const [c, p, f] = ["m-c", "m-p", "m-f"].map(id => Number(read(id) || 0));
   let kcal = read("m-kcal") === "" ? c * 4 + p * 4 + f * 9 : Number(read("m-kcal"));   // 칼로리를 비우면 탄단지로 계산
   if (!food) return alert("음식 이름을 적어 주세요.");
-  if ([kcal, c, p, f].some(x => isNaN(x) || x < 0)) return alert("숫자를 확인해 주세요.");
+  if ([kcal, c, p, f, g].some(x => isNaN(x) || x < 0)) return alert("숫자를 확인해 주세요.");
   const id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   data.meals.push({
     id, day: ui.day || isoDay(), slot: ui.mealForm, food,
-    kcal: Math.round(kcal), c: round1(c), p: round1(p), f: round1(f), synced: false,
+    kcal: Math.round(kcal), c: round1(c), p: round1(p), f: round1(f), ...(g ? { g: round1(g) } : {}), synced: false,
   });
-  if (typeof toast === "function") toast(`${ui.mealForm}에 ${food} 추가 · ${kcalText(kcal)}kcal`);
-  Object.assign(ui, { mealForm: null, foodDb: null, freshMeal: [id] });
+  if (typeof toast === "function") toast(`${ui.mealForm}에 ${food}${g ? " " + num(g) + "g" : ""} 추가 · ${kcalText(kcal)}kcal`);
+  Object.assign(ui, { mealForm: null, foodDb: null, mealPick: null, myFoodForm: false, freshMeal: [id] });
   changed();
 }
 
@@ -246,6 +252,7 @@ function deleteMeal(id) {
   const m = data.meals.find(x => x.id === id);
   if (!m || !confirm(`${m.food}을(를) 지울까요?`)) return;
   if (m.synced) data.deletedMeals.push(id);
+  ui.editMeal = null;
   data.meals = data.meals.filter(x => x.id !== id);
   changed();
 }
@@ -295,7 +302,7 @@ function recentFoods(filter = "") {
 
 function addMealCopy(m, day, slot) {                          // 음식 하나를 그대로 복사해서 넣기 (새 id를 돌려줌)
   const id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  data.meals.push({ id, day, slot, food: m.food, kcal: m.kcal, c: m.c, p: m.p, f: m.f, synced: false });
+  data.meals.push({ id, day, slot, food: m.food, kcal: m.kcal, c: m.c, p: m.p, f: m.f, ...(m.g ? { g: m.g } : {}), synced: false });
   return id;
 }
 
@@ -335,47 +342,148 @@ function recentFoodChips(filter) {
 //   앱 → 우리 Supabase 서버 함수(food-search) → 식약처. 인증키는 서버에만 있음
 //   결과는 "기준량(보통 100g)당" 숫자 → 먹은 양(g)을 넣으면 칸이 그만큼 채워짐 → [추가]
 
+// 검색 = 내 음식(폰에 있음, 인터넷 없어도 됨) 먼저 + 식약처 DB (로그인 · 인터넷 필요)
+function myFoodMatches(q) {
+  const key = compactName(q);
+  return Object.entries(data.myFoods).filter(([name]) => compactName(name).includes(key))
+    .map(([name, f]) => ({ ...f, name, maker: null, mine: true }));
+}
+
 async function searchFoodDb() {
   const q = document.getElementById("m-food").value.trim();
   if (!q) return alert("음식 이름을 먼저 적어 주세요. (예: 홀리닭)");
+  const mine = myFoodMatches(q);
   const show = foodDb => { ui.foodDb = foodDb; const box = document.querySelector(".db-results"); if (box) box.innerHTML = foodDbResults(); };
-  if (typeof account === "undefined" || !account.user) return show({ state: "error", message: "로그인하면 식약처 DB를 검색할 수 있어요." });
-  if (!navigator.onLine) return show({ state: "error", message: "인터넷이 연결돼야 검색할 수 있어요." });
+  if (typeof account === "undefined" || !account.user) return show({ state: "done", q, items: mine, note: "로그인하면 식약처 DB도 같이 찾아요." });
+  if (!navigator.onLine) return show({ state: "done", q, items: mine, note: "인터넷이 연결되면 식약처 DB도 같이 찾아요." });
   show({ state: "loading", q });
   const { data: res, error } = await db.functions.invoke("food-search", { body: { q } });
   if (ui.foodDb?.q !== q) return;                                      // 그새 다른 걸 검색했으면 무시
-  if (error || res?.error) return show({ state: "error", message: "검색이 안 됐어요. 잠시 뒤에 다시 해 주세요." });
-  show({ state: "done", q, items: (res.items || []).slice(0, FOOD_DB_SHOWN), pick: null });
+  const found = error || res?.error ? [] : (res.items || []).slice(0, FOOD_DB_SHOWN);
+  show({ state: "done", q, items: [...mine, ...found], note: error || res?.error ? "식약처 검색이 안 됐어요. 잠시 뒤에 다시 해 주세요." : "" });
 }
 
 function foodDbResults() {
   const s = ui.foodDb;
   if (!s) return "";
-  if (s.state === "loading") return `<p class="small muted">식약처 DB에서 찾는 중…</p>`;
-  if (s.state === "error") return `<p class="small muted">${s.message}</p>`;
-  if (!s.items.length) return `<p class="small muted">"${escapeHtml(s.q)}"은(는) 식약처 DB에 없어요. 포장지 영양성분표를 보고 한 번 적어 두면 "최근 먹은 것"에 계속 나와요.</p>`;
-  return `<p class="label">식약처 DB — 누르고 먹은 양을 적으면 칸이 채워져요</p>
+  if (s.state === "loading") return `<p class="small muted">찾는 중…</p>`;
+  const add = `<button class="link small" data-action="n-myfood-new">+ "${escapeHtml(s.q)}" 직접 등록 (포장지 영양성분표 보고)</button>`;
+  const note = s.note ? `<p class="small muted">${s.note}</p>` : "";
+  if (!s.items.length) return `${note}<p class="small muted">"${escapeHtml(s.q)}"은(는) 찾지 못했어요. 한 번 등록해 두면 다음부터 검색에 나와요.</p>${add}`;
+  return `${note}<p class="label">누르고 먹은 양(g)을 적으면 칼로리 · 탄단지가 계산돼요</p>
     <div class="food-chips">${s.items.map((it, i) => `
-      <button class="food-chip ${s.pick === i ? "selected" : ""}" data-action="n-db-pick" data-i="${i}">
-        <b>${escapeHtml(it.name)}</b>
-        <span class="small muted">${it.maker ? escapeHtml(it.maker) + " · " : ""}${num(it.basis)}${it.unit}당 ${kcalText(it.kcal)}kcal · 탄 ${num(round1(it.c))} 단 ${num(round1(it.p))} 지 ${num(round1(it.f))}</span></button>
-      ${s.pick === i ? `<label class="mini grams">먹은 양 (${it.unit})<input id="m-grams" type="number" inputmode="decimal" value="${num(s.grams)}"></label>` : ""}`).join("")}</div>`;
+      <button class="food-chip ${ui.mealPick && ui.mealPick.name === it.name && ui.mealPick.i === i ? "selected" : ""}" data-action="n-db-pick" data-i="${i}">
+        <b>${it.mine ? `<span class="badge">내 음식</span> ` : ""}${escapeHtml(it.name)}</b>
+        <span class="small muted">${it.maker ? escapeHtml(it.maker) + " · " : ""}${num(it.basis)}${it.unit}당 ${kcalText(it.kcal)}kcal · 탄 ${num(round1(it.c))} 단 ${num(round1(it.p))} 지 ${num(round1(it.f))}</span></button>`).join("")}</div>
+    ${add}`;
 }
 
 function pickFoodDb(i) {                                     // 결과 하나 고르기 → 먹은 양 기본값 = 제품 한 개 중량 (모르면 기준량)
   const it = ui.foodDb.items[i];
-  Object.assign(ui.foodDb, { pick: i, grams: it.total || it.basis });
+  ui.mealPick = { ...it, i };
   document.querySelector(".db-results").innerHTML = foodDbResults();
-  fillFromFoodDb();
+  document.getElementById("m-food").value = it.name;
+  document.getElementById("m-g").value = num(it.total || it.basis);
+  fillFromPick();
 }
 
-function fillFromFoodDb() {                                  // 고른 음식 × 먹은 양 → 음식 · 칼로리 · 탄단지 칸 채우기 (화면은 다시 안 그림)
-  const s = ui.foodDb, it = s.items[s.pick];
-  const k = s.grams / it.basis;
+// 고른 음식 × 먹은 양 → 칼로리 · 탄단지 칸 채우기 (화면은 다시 안 그림). 같은 비율로 커지고 작아짐
+function fillFromPick() {
+  const it = ui.mealPick, g = Number(document.getElementById("m-g").value);
+  if (!it || !(g > 0)) return;
+  const k = g / it.basis;
   const set = (id, v) => { document.getElementById(id).value = v; };
-  set("m-food", `${it.name} ${num(s.grams)}${it.unit}`);
   set("m-kcal", Math.round(it.kcal * k));
   set("m-c", round1(it.c * k)); set("m-p", round1(it.p * k)); set("m-f", round1(it.f * k));
+  const note = document.querySelector(".pick-note");
+  if (note) note.textContent = `${it.name} · ${num(it.basis)}${it.unit}당 ${kcalText(it.kcal)}kcal 기준으로 ${num(g)}${it.unit} 계산`;
+}
+
+// "직접 등록": 포장지 영양성분표 그대로 (기준량당) 적기 → 내 음식에 저장하고 바로 고른 상태로
+function myFoodFormHtml() {
+  if (!ui.myFoodForm) return "";
+  const q = ui.foodDb ? ui.foodDb.q : "";
+  return `
+    <div class="panel myfood">
+      <p class="label">내 음식 등록 — 포장지 영양성분표의 숫자를 그대로</p>
+      <input id="mf-name" class="text" value="${escapeHtml(q)}" placeholder="음식 이름">
+      <div class="grid3">
+        <label class="mini">기준량(g)<input id="mf-basis" type="number" inputmode="decimal" value="100"></label>
+        <label class="mini">한 개 중량(g)<input id="mf-total" type="number" inputmode="decimal" placeholder="선택"></label>
+        <label class="mini">칼로리<input id="mf-kcal" type="number" inputmode="decimal"></label>
+      </div>
+      <div class="grid3">${MACROS.map((m, i) => `<label class="mini"><i class="sw m${i}"></i>${m.name}(g)<input id="mf-${m.key}" type="number" inputmode="decimal"></label>`).join("")}</div>
+      <div class="row gap-s">
+        <button class="small primary" data-action="n-myfood-save">등록하고 고르기</button>
+        <button class="small" data-action="n-myfood-cancel">취소</button>
+      </div>
+    </div>`;
+}
+
+function showMyFoodForm(open) {                              // 등록 칸만 열고 닫기 (다른 칸에 적은 글자는 그대로)
+  ui.myFoodForm = open;
+  const box = document.querySelector(".myfood-box");
+  if (box) box.innerHTML = myFoodFormHtml();
+}
+
+function saveMyFood() {
+  const read = id => document.getElementById(id).value.trim();
+  const name = read("mf-name");
+  const [basis, total, c, p, f] = ["mf-basis", "mf-total", "mf-c", "mf-p", "mf-f"].map(id => Number(read(id) || 0));
+  const kcal = read("mf-kcal") === "" ? c * 4 + p * 4 + f * 9 : Number(read("mf-kcal"));
+  if (!name) return alert("음식 이름을 적어 주세요.");
+  if (!(basis > 0) || [total, kcal, c, p, f].some(x => isNaN(x) || x < 0)) return alert("숫자를 확인해 주세요.");
+  const food = { basis, unit: "g", total: total || null, kcal: round1(kcal), c: round1(c), p: round1(p), f: round1(f) };
+  data.myFoods[name] = food;
+  data.myFoodsDirty = true;
+  save();
+  showMyFoodForm(false);
+  ui.foodDb = { state: "done", q: name, items: [{ ...food, name, maker: null, mine: true }] };
+  pickFoodDb(0);
+  if (typeof toast === "function") toast(`내 음식에 ${name} 등록`);
+}
+
+// ---------- 넣은 음식 고치기: 줄을 누르면 그 자리에서 수정 칸 (먹은 양을 바꾸면 같은 비율로 다시 계산) ----------
+
+function mealEditHtml(m) {
+  return `
+    <div class="meal-edit">
+      <b>${escapeHtml(m.food)}</b>
+      <label class="mini">먹은 양 (g)<input id="e-g" type="number" inputmode="decimal" value="${m.g ? num(m.g) : ""}" placeholder="모르면 비워 두기"></label>
+      <div class="grid4">
+        <label class="mini">칼로리<input id="e-kcal" type="number" inputmode="decimal" value="${m.kcal}"></label>
+        ${MACROS.map((x, i) => `<label class="mini"><i class="sw m${i}"></i>${x.name}(g)<input id="e-${x.key}" type="number" inputmode="decimal" value="${num(m[x.key])}"></label>`).join("")}
+      </div>
+      <p class="small muted">${m.g ? `먹은 양을 바꾸면 칼로리 · 탄단지가 같은 비율로 바뀌어요 (지금 ${num(m.g)}g 기준)` : "g을 적어 두면 다음부터 g만 바꿔도 비율대로 계산돼요"}</p>
+      <div class="row gap-s">
+        <button class="small primary" data-action="n-edit-save" data-id="${m.id}">저장</button>
+        <button class="small" data-action="n-edit-cancel">취소</button>
+        <button class="small danger" data-action="n-del-meal" data-id="${m.id}">삭제</button>
+      </div>
+    </div>`;
+}
+
+function scaleEdit(value) {                                   // 수정 칸에서 g을 바꾸면 원래 값 × (새 g ÷ 원래 g)
+  const m = data.meals.find(x => x.id === ui.editMeal);
+  const g = Number(value);
+  if (!m || !m.g || !(g > 0)) return;
+  const k = g / m.g;
+  const set = (id, v) => { document.getElementById(id).value = v; };
+  set("e-kcal", Math.round(m.kcal * k));
+  set("e-c", round1(m.c * k)); set("e-p", round1(m.p * k)); set("e-f", round1(m.f * k));
+}
+
+function saveMealEdit(id) {
+  const m = data.meals.find(x => x.id === id);
+  const read = key => document.getElementById(key).value.trim();
+  const g = Number(read("e-g") || 0);
+  const [kcal, c, p, f] = ["e-kcal", "e-c", "e-p", "e-f"].map(key => Number(read(key) || 0));
+  if ([g, kcal, c, p, f].some(x => isNaN(x) || x < 0)) return alert("숫자를 확인해 주세요.");
+  Object.assign(m, { kcal: Math.round(kcal), c: round1(c), p: round1(p), f: round1(f), synced: false });
+  if (g) m.g = round1(g); else delete m.g;
+  Object.assign(ui, { editMeal: null, freshMeal: [id] });
+  if (typeof toast === "function") toast(`${m.food}${m.g ? " " + num(m.g) + "g" : ""} · ${kcalText(m.kcal)}kcal로 수정`);
+  changed();
 }
 
 function setDayStatus(v) {                                     // "다 적었어" / "덜 적었어" / 자동으로
@@ -639,6 +747,9 @@ function mealForm(slot) {
         <button class="small" data-action="n-db-search">검색</button>
       </div>
       <div class="db-results">${foodDbResults()}</div>
+      <div class="myfood-box">${myFoodFormHtml()}</div>
+      <label class="mini">먹은 양 (g)<input id="m-g" type="number" inputmode="decimal" placeholder="예: 150 (선택)"></label>
+      <p class="small muted pick-note"></p>
       <div class="grid4">
         <label class="mini">칼로리<input id="m-kcal" type="number" inputmode="decimal"></label>
         ${MACROS.map((m, i) => `<label class="mini"><i class="sw m${i}"></i>${m.name}(g)<input id="m-${m.key}" type="number" inputmode="decimal"></label>`).join("")}
@@ -660,11 +771,11 @@ function mealsCard(day) {
       <div class="slot">
         <div class="slot-head"><b>${slot}</b><span class="muted small">${items.length ? kcalText(kcal) + "kcal" : ""}</span>
           ${ui.mealForm === slot ? "" : `<button class="link small" data-action="n-add-meal" data-v="${slot}">+ 추가</button>`}</div>
-        ${items.map(m => `
-          <div class="meal ${ui.freshMeal && ui.freshMeal.includes(m.id) ? "fresh" : ""}">
+        ${items.map(m => ui.editMeal === m.id ? mealEditHtml(m) : `
+          <div class="meal ${ui.freshMeal && ui.freshMeal.includes(m.id) ? "fresh" : ""}" data-action="n-edit-meal" data-id="${m.id}">
             <div><b>${escapeHtml(m.food)}</b>
-              <span class="muted small">${kcalText(m.kcal)}kcal · 탄 ${num(m.c)} · 단 ${num(m.p)} · 지 ${num(m.f)}</span></div>
-            <button class="link danger small" data-action="n-del-meal" data-id="${m.id}">삭제</button>
+              <span class="muted small">${m.g ? `<b class="ink">${num(m.g)}g</b> · ` : ""}${kcalText(m.kcal)}kcal · 탄 ${num(m.c)} · 단 ${num(m.p)} · 지 ${num(m.f)}</span></div>
+            <span class="muted small">수정 ›</span>
           </div>`).join("")}
         ${ui.mealForm === slot ? mealForm(slot) : ""}
       </div>`;
@@ -797,10 +908,20 @@ async function syncNutrition() {
   const meals = data.meals.filter(m => !m.synced);
   if (meals.length) {
     const { error } = await db.from("meals").upsert(meals.map(m => ({
-      id: m.id, day: m.day, slot: m.slot, food: m.food, kcal: m.kcal, carb: m.c, protein: m.p, fat: m.f,
+      id: m.id, day: m.day, slot: m.slot, food: m.food, kcal: m.kcal, carb: m.c, protein: m.p, fat: m.f, grams: m.g ?? null,
     })));
     if (error) throw error;
     meals.forEach(m => { m.synced = true; justUploaded.add(m.id); });
+    save();
+  }
+  if (data.myFoodsDirty) {                                     // 직접 등록한 음식 (이름마다 한 줄, 덮어쓰기)
+    const rows = Object.entries(data.myFoods).map(([name, f]) => ({ name, basis: f.basis, unit: f.unit, total: f.total,
+      kcal: f.kcal, carb: f.c, protein: f.p, fat: f.f, updated_at: new Date().toISOString() }));
+    if (rows.length) {
+      const { error } = await db.from("my_foods").upsert(rows);
+      if (error) throw error;
+    }
+    data.myFoodsDirty = false;
     save();
   }
   const s = data.nutrition;
@@ -827,16 +948,22 @@ async function syncNutrition() {
   }
   for (const d of Object.keys(data.body)) if (data.body[d].synced && !remoteDays.has(d) && !justUploaded.has(d)) delete data.body[d];
 
-  const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat");
+  const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat, grams");
   const remoteIds = new Set(remoteMeals.map(r => r.id));
   const localIds = new Set(data.meals.map(m => m.id));
   for (const r of remoteMeals) {
     if (localIds.has(r.id)) continue;
     data.meals.push({ id: r.id, day: r.day, slot: r.slot, food: r.food, kcal: r.kcal,
-      c: Number(r.carb), p: Number(r.protein), f: Number(r.fat), synced: true });
+      c: Number(r.carb), p: Number(r.protein), f: Number(r.fat), ...(r.grams != null ? { g: Number(r.grams) } : {}), synced: true });
   }
   data.meals = data.meals.filter(m => !m.synced || remoteIds.has(m.id) || justUploaded.has(m.id));
 
+  if (!data.myFoodsDirty) {                                    // 받기: 다른 기기에서 등록한 내 음식
+    for (const r of await selectAll("my_foods", "name, basis, unit, total, kcal, carb, protein, fat")) {
+      data.myFoods[r.name] = { basis: Number(r.basis), unit: r.unit, total: r.total != null ? Number(r.total) : null,
+        kcal: Number(r.kcal), c: Number(r.carb), p: Number(r.protein), f: Number(r.fat) };
+    }
+  }
   const { data: rows, error } = await db.from("nutrition_settings")
     .select("carb_pct, protein_pct, fat_pct, target_kg_per_week, day_ratios, sex, birth_year, height_cm, activity, manual_maintenance, day_status");
   if (error) throw error;
@@ -861,9 +988,9 @@ document.addEventListener("click", event => {
     case "nutrition":
       Object.assign(ui, { screen: "nutrition", day: null, weightDraft: null, mealForm: null, ratioPanel: false, speedPanel: false });
       return render();
-    case "n-tab": Object.assign(ui, { nutritionTab: v, mealForm: null, ratioPanel: false, speedPanel: false }); return render();
+    case "n-tab": Object.assign(ui, { nutritionTab: v, editMeal: null, mealForm: null, ratioPanel: false, speedPanel: false }); return render();
     case "n-day":
-      Object.assign(ui, { day: addDays(ui.day || isoDay(), Number(v)), weightDraft: null, compOpen: false, compDraft: {}, mealForm: null, ratioPanel: false });
+      Object.assign(ui, { day: addDays(ui.day || isoDay(), Number(v)), editMeal: null, weightDraft: null, compOpen: false, compDraft: {}, mealForm: null, ratioPanel: false });
       if (ui.day === isoDay()) ui.day = null;                     // 오늘 = null
       if (ui.day && ui.day > addDays(isoDay(), PLAN_AHEAD_DAYS)) ui.day = addDays(isoDay(), PLAN_AHEAD_DAYS);
       return render();
@@ -877,11 +1004,17 @@ document.addEventListener("click", event => {
     case "n-comp": ui.compOpen = true; return render();
     case "n-del-weight": return deleteWeight();
     case "n-add-meal":
-      Object.assign(ui, { mealForm: v, foodDb: null });
+      Object.assign(ui, { mealForm: v, foodDb: null, mealPick: null, myFoodForm: false, editMeal: null });
       render();
       return document.getElementById("m-food").focus();
-    case "n-cancel-meal": Object.assign(ui, { mealForm: null, foodDb: null }); return render();
+    case "n-cancel-meal": Object.assign(ui, { mealForm: null, foodDb: null, mealPick: null, myFoodForm: false }); return render();
     case "n-db-search": return searchFoodDb();
+    case "n-myfood-new": return showMyFoodForm(true);
+    case "n-myfood-cancel": return showMyFoodForm(false);
+    case "n-myfood-save": return saveMyFood();
+    case "n-edit-meal": Object.assign(ui, { editMeal: el.dataset.id, mealForm: null }); return render();
+    case "n-edit-cancel": ui.editMeal = null; return render();
+    case "n-edit-save": return saveMealEdit(el.dataset.id);
     case "n-db-pick": return pickFoodDb(Number(el.dataset.i));
     case "n-quick-meal": return quickMeal(el.dataset.food);
     case "n-copy-prev": return copyPreviousDay();
@@ -909,10 +1042,8 @@ document.addEventListener("input", event => {
     const box = document.querySelector(".recent-foods");
     if (box) box.innerHTML = recentFoodChips(event.target.value);
   }
-  if (event.target.id === "m-grams" && ui.foodDb) {             // 먹은 양을 바꾸면 칸의 숫자만 다시 계산
-    const g = Number(event.target.value);
-    if (g > 0) { ui.foodDb.grams = g; fillFromFoodDb(); }
-  }
+  if (event.target.id === "m-g") fillFromPick();                // 추가 칸: 먹은 양을 바꾸면 칼로리 · 탄단지를 비율대로 다시 계산
+  if (event.target.id === "e-g") scaleEdit(event.target.value);   // 수정 칸도 같게
   if (ui.baseDraft && /^b-/.test(event.target.id)) ui.baseDraft[event.target.id] = event.target.value;   // 유지 칼로리 칸
 });
 
