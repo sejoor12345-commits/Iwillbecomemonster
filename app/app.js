@@ -3,7 +3,7 @@
 // [지도]
 //   들어오는 것: 버튼 누르기 (분할 선택, ± , 세트 완료, RPE …)
 //   저장하는 곳: 폰 브라우저 저장소(localStorage)의 data 하나
-//   나가는 것:   화면(render) + 메모 형식 글자(toMemo) → 노트북 ①에 붙여넣기
+//   나가는 것:   화면(render). 기록은 Supabase로 동기화 (v0.6-c부터 노트북으로 내보내는 메모 형식은 없앰)
 //
 // [저장 모양] — 노트북처럼 "운동 한 번 → 종목들 → 세트들"
 //   data = {
@@ -18,7 +18,7 @@
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.6-b.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.6-c.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -253,17 +253,6 @@ function formatSets(name, sets) {
   return groups.map(g => `${num(g.w)}*${g.reps.join(",")}`).join(" ");
 }
 
-// 운동 한 번 → "가슴 10/05\n◦ Bench press: 85*8,8,7 @8\n…"
-//   여러 분할을 같이 한 날은 "어깨+팔 10/26" 한 줄로 시작 (노트북 ①도 "+"로 이어진 분할을 하나의 분할로 읽음)
-function toMemo(w) {
-  const lines = [`${w.split} ${dateLabel(w.start)}`];       // 노트북은 줄 맨 앞 분할 이름만 봄 → 날짜는 참고용
-  for (const e of w.exercises) {
-    if (!e.sets.length) continue;
-    lines.push(`◦ ${e.name}: ${formatSets(e.name, e.sets)}${e.rpe ? ` @${e.rpe}` : ""}`);
-  }
-  return lines.join("\n");
-}
-
 
 // ---------- 4. 버튼이 하는 일 ----------
 
@@ -449,16 +438,6 @@ function deleteWorkout(id) {
   render();
 }
 
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("복사했어요. 노트북 ①의 MEMO 맨 아래에 붙여넣으세요.");
-  } catch (e) {
-    const box = document.querySelector("textarea");
-    if (box) { box.select(); alert("자동 복사가 안 돼요. 선택된 글을 길게 눌러 복사하세요."); }
-  }
-}
-
 function downloadBackup() {
   const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
   const a = document.createElement("a");
@@ -560,7 +539,6 @@ function workoutsView() {
       ${list}
       <div class="row gap">
         <button data-action="import-screen">메모 가져오기</button>
-        <button data-action="export">내보내기</button>
       </div>` : `
       ${typeof progressView === "function" ? progressView() : ""}`;      // progress.js
   return `
@@ -752,7 +730,7 @@ function summaryView() {
   const w = data.workouts.find(x => x.id === ui.summaryId);
   if (!w) { ui.screen = "workouts"; return workoutsView(); }
   return `
-    <header class="bar"><h1>${dateLabel(w.start)} ${w.split}</h1><button class="small" data-action="workouts">Workout</button></header>
+    <header class="bar"><h1>${dateLabel(w.start)} ${w.split}</h1><button class="small" data-action="workouts">목록</button></header>
     <main>
       <div class="stats">
         <div><b class="num c-count">${w.exercises.length}</b><span>종목</span></div>
@@ -760,23 +738,14 @@ function summaryView() {
         <div><b class="num c-time">${duration(w)}</b><span>운동 시간</span></div>
       </div>
       ${averageRest(w) ? `<p class="muted small center">세트 사이 평균 휴식 ${clock(averageRest(w))}</p>` : ""}
-      ${w.exercises.some(e => e.note) ? `<h2>메모</h2>${w.exercises.filter(e => e.note)
-        .map(e => `<p class="small"><b>${escapeHtml(e.name)}</b> ${escapeHtml(e.note)}</p>`).join("")}` : ""}
-      <h2>메모 형식</h2>
-      <textarea readonly rows="${w.exercises.length + 2}">${escapeHtml(toMemo(w))}</textarea>
-      <button class="primary" data-action="copy">복사하기</button>
+      <h2>기록</h2>
+      <section class="card pad">${w.exercises.filter(e => e.sets.length).map(e => `
+        <div class="session">
+          <div class="top-line"><b>${escapeHtml(e.name)}</b><span class="muted small">${e.sets.length}세트${e.rpe ? ` · RPE ${e.rpe}` : ""}</span></div>
+          <div class="sets">${formatSets(e.name, e.sets)}</div>
+          ${e.note ? `<p class="small muted">✎ ${escapeHtml(e.note)}</p>` : ""}
+        </div>`).join("")}</section>
       <button class="link danger small" data-action="delete-workout" data-id="${w.id}">이 운동 기록 지우기</button>
-    </main>`;
-}
-
-function exportView() {
-  const text = finishedWorkouts().map(toMemo).join("\n\n");
-  return `
-    <header class="bar"><h1>내보내기</h1><button class="small" data-action="workouts">Workout</button></header>
-    <main>
-      <p class="muted small">끝난 운동 전체를 오래된 순서로 메모 형식으로 바꿨어요. 노트북 ①의 MEMO에 붙여넣으세요.</p>
-      <textarea readonly rows="16">${escapeHtml(text || "아직 끝난 운동이 없어요.")}</textarea>
-      <button class="primary" data-action="copy">복사하기</button>
     </main>`;
 }
 
@@ -808,7 +777,7 @@ function tabBar() {
 }
 
 function render() {
-  const views = { home: homeView, workouts: workoutsView, workout: workoutView, summary: summaryView, export: exportView,
+  const views = { home: homeView, workouts: workoutsView, workout: workoutView, summary: summaryView,
                   login: () => loginView(),                       // loginView는 sync.js에 있음
                   import: () => importView(),                     // importView는 import.js에 있음
                   nutrition: () => nutritionView(),               // nutritionView는 nutrition.js에 있음
@@ -867,8 +836,6 @@ document.addEventListener("click", event => {
     case "tab-workout": ui.screen = current() ? "workout" : "workouts"; return render();
     case "workouts": ui.screen = "workouts"; return render();
     case "workout-tab": ui.workoutTab = el.dataset.v; return render();
-    case "export": ui.screen = "export"; return render();
-    case "copy": return copyText(document.querySelector("textarea").value);
     case "backup": return downloadBackup();
   }
 });
