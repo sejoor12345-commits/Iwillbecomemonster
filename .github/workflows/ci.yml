@@ -1,0 +1,50 @@
+# 자동 검사 (CI = GitHub가 올릴 때마다 대신 돌려 주는 검사)
+#
+# [지도]
+#   들어오는 것: 브랜치에 push, 또는 PR
+#   하는 일:     ① 앱 파일 문법 검사 (node --check)  ② node 시험 (node --test, 설치 필요 없음)
+#                ③ 브라우저 연기 시험 (Playwright로 아이폰 크기 Chromium, 가짜 Supabase — 진짜 서버는 안 건드림)
+#   나가는 것:   GitHub의 PR 화면 · Actions 탭에 ✅ / ❌
+#   ③만 실패하면 브라우저 설치 문제일 수 있으니 ①②부터 확인. 앱 자체는 여전히 npm 없이 돌아감
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    name: 문법 · node 시험
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 문법 검사 (app/*.js, tests)
+        run: for f in app/*.js tests/*.js tests/helpers/*.js; do node --check "$f" || exit 1; done
+      - name: node 시험
+        run: node --test
+
+  smoke:
+    name: 브라우저 연기 시험
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright 설치 (시험용으로만, 저장소에는 안 남김)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: 연기 시험 (사진 포함)
+        run: SHOTS=shots SMOKE_OFFLINE=1 node tests/e2e-smoke.js
+      - name: 화면 사진 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-shots
+          path: shots
+          if-no-files-found: ignore
