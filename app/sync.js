@@ -4,7 +4,8 @@
 //   들어오는 것: 이메일 · 비밀번호, 폰에 저장된 data (app.js)
 //   하는 일:     [올리기] 아직 안 올린 운동을 표 3개(workouts · workout_exercises · sets)로 나눠 올리기,
 //                         지운 운동은 인터넷에서도 지우기, 내가 만든 종목(my_exercises) 올리기
-//                [받기]   인터넷에만 있는 운동(다른 기기에서 한 것)을 표 3개에서 모아 폰으로 가져오기
+//                [받기]   인터넷에만 있는 운동(다른 기기에서 한 것)을 표 3개에서 모아 폰으로 가져오기,
+//                         이미 올라가 있던 운동은 인터넷 쪽 내용으로 맞추기 (다른 기기에서 고친 것, v0.6-d)
 //   나가는 것:   홈 화면의 계정 칸 (로그인 상태 · 올릴 기록 수 · 동기화 결과)
 //
 // 원칙: 기록은 항상 폰에 먼저 저장된다(app.js). 여기는 인터넷이 될 때 "올리기"만 담당.
@@ -168,13 +169,23 @@ async function downloadAll(justUploaded) {
     "id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, superset, sets(set_no, weight, reps, done_at))", "id");
 
   const remoteIds = new Set(rows.map(r => r.id));
-  const localIds = new Set(data.workouts.map(w => w.id));
-  let added = 0, removed = 0;
+  const localAt = new Map(data.workouts.map((w, i) => [w.id, i]));   // id → 폰의 몇 번째 운동
+  let added = 0, removed = 0, updated = 0;
 
-  for (const row of rows) {                                       // [1] 인터넷에만 있는 운동 → 폰에 추가
-    if (localIds.has(row.id) || data.deleted.includes(row.id)) continue;
-    data.workouts.push(toLocalWorkout(row));
-    added++;
+  for (const row of rows) {
+    if (data.deleted.includes(row.id)) continue;
+    const i = localAt.get(row.id);
+    if (i === undefined) {                                        // [1] 인터넷에만 있는 운동 → 폰에 추가
+      data.workouts.push(toLocalWorkout(row));
+      added++;
+      continue;
+    }
+    const local = data.workouts[i];                               // [1-2] 폰에도 있음 (v0.6-d)
+    if (!local.synced || !local.end || justUploaded.has(row.id)) continue;   // 폰에서 고치고 안 올린 것 · 진행 중 · 방금 올린 것 → 폰 것이 최신
+    const remote = toLocalWorkout(row);                           // 이미 올라가 있던 것 → 인터넷 쪽이 기준 (다른 기기에서 고친 것)
+    if (sameWorkout(local, remote)) continue;                     //   같으면 그대로 (괜히 바꾸지 않기)
+    data.workouts[i] = { ...remote, ...(local.imported ? { imported: true, estimated: local.estimated } : {}) };   // 메모에서 가져온 표시는 폰에만 있어서 남김
+    updated++;
   }
   const before = data.workouts.length;                            // [2] 폰에서 '올라가 있던' 운동인데 인터넷에 없음
   data.workouts = data.workouts.filter(w =>                       //     → 다른 기기에서 지운 것 → 폰에서도 지우기
@@ -187,7 +198,19 @@ async function downloadAll(justUploaded) {
     if (!data.custom[c.name]) data.custom[c.name] = { part: c.part, range: [c.range_low, c.range_high], step: Number(c.step) };
   }
   save();
-  return { added, removed };
+  return { added, removed, updated };
+}
+
+// 폰의 운동과 인터넷에서 받은 운동이 내용까지 같은가 (시각은 글자 모양이 달라서 Date로 바꿔 비교: "…00.000Z" vs "…00+00:00")
+const sameTime = (a, b) => (a ? Date.parse(a) : null) === (b ? Date.parse(b) : null);
+function sameWorkout(a, b) {
+  if (a.split !== b.split || !sameTime(a.start, b.start) || !sameTime(a.end, b.end) || a.exercises.length !== b.exercises.length) return false;
+  return a.exercises.every((e, k) => {
+    const f = b.exercises[k];
+    return e.name === f.name && (e.rpe ?? null) === (f.rpe ?? null) && (e.note || "") === (f.note || "") && !!e.ss === !!f.ss
+      && e.sets.length === f.sets.length
+      && e.sets.every((s, j) => Number(s.w) === Number(f.sets[j].w) && s.r === f.sets[j].r && sameTime(s.t, f.sets[j].t));
+  });
 }
 
 async function syncNow() {
@@ -228,9 +251,10 @@ async function syncNow() {
     }
     if (typeof syncNutrition === "function") await syncNutrition();   // 체중 · 식사 · 식단 설정 (nutrition.js)
     if (typeof syncAppSettings === "function") await syncAppSettings(); // 숨긴 그래프 목록 (progress.js)
-    const { added, removed } = await downloadAll(justUploaded);   // 올린 다음에 받기
+    const { added, removed, updated } = await downloadAll(justUploaded);   // 올린 다음에 받기
     const now = new Date();
-    const changes = [added && `받아온 기록 ${added}개`, removed && `다른 기기에서 지운 기록 ${removed}개 정리`].filter(Boolean).join(", ");
+    const changes = [added && `받아온 기록 ${added}개`, updated && `다른 기기에서 고친 기록 ${updated}개 반영`,
+      removed && `다른 기기에서 지운 기록 ${removed}개 정리`].filter(Boolean).join(", ");
     account.status = `동기화 완료 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}${changes ? " · " + changes : ""}`;
   } catch (error) {
     account.status = `동기화 실패 — 다음에 다시 시도해요 (${authError(error)})`;

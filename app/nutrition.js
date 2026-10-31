@@ -942,11 +942,15 @@ async function syncNutrition() {
 
   const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat, grams", "id");
   const remoteIds = new Set(remoteMeals.map(r => r.id));
-  const localIds = new Set(data.meals.map(m => m.id));
+  const localAt = new Map(data.meals.map((m, i) => [m.id, i]));   // id → 폰의 몇 번째 줄
   for (const r of remoteMeals) {
-    if (localIds.has(r.id)) continue;
-    data.meals.push({ id: r.id, day: r.day, slot: r.slot, food: r.food, kcal: r.kcal,
-      c: Number(r.carb), p: Number(r.protein), f: Number(r.fat), ...(r.grams != null ? { g: Number(r.grams) } : {}), synced: true });
+    const fresh = { id: r.id, day: r.day, slot: r.slot, food: r.food, kcal: r.kcal,
+      c: Number(r.carb), p: Number(r.protein), f: Number(r.fat), ...(r.grams != null ? { g: Number(r.grams) } : {}), synced: true };
+    const i = localAt.get(r.id);
+    if (i === undefined) data.meals.push(fresh);                 // 인터넷에만 있음 → 폰에 추가
+    else if (data.meals[i].synced && !justUploaded.has(r.id)) data.meals[i] = fresh;
+    //   폰에도 있고 이미 올라가 있던 것(synced) → 인터넷 값으로 바꿈 = 다른 기기에서 고친 g · 칼로리 반영 (v0.6-d)
+    //   폰에서 고치고 아직 안 올린 것(synced: false)과 방금 올린 것은 폰 것이 최신이라 그대로
   }
   data.meals = data.meals.filter(m => !m.synced || remoteIds.has(m.id) || justUploaded.has(m.id));
 
