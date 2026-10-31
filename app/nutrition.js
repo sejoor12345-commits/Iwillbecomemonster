@@ -25,6 +25,8 @@ const RATIO_PRESETS = [[50, 30, 20], [40, 30, 30]];
 const DEFAULT_KG_PER_WEEK = -0.5;          // 목표 속도 (kg/주): 감량 -0.5 / 유지 0 / 증량 0.25
 const SPEED_CHOICES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
 const INITIAL_MAINTENANCE = 2500;          // 내 정보도 직접 입력도 없을 때 쓰는 유지 칼로리 (kcal)
+const MIN_TARGET_KCAL = 1500;              // 추천 섭취의 바닥 (kcal). 계산이 이보다 낮게 나와도 이 아래로는 추천 안 함 (v0.6-d)
+const MIN_TARGET_KCAL_FEMALE = 1200;       //   내 정보에서 성별을 "여"로 고른 경우의 바닥. 흔히 쓰는 안내값(남 1500 · 여 1200), 의학적 처방 아님
 const COMPLETE_DAY_RATIO = 0.6;            // 그날 칼로리가 (처음 추정) 추천 섭취의 60%보다 적으면 "덜 적은 날" → 계산에서 뺌
 const ACTIVITY_LEVELS = [                  // 활동계수 (기초대사량에 곱함)
   { factor: 1.2,   name: "거의 안 움직임", example: "운동은 거의 안 하고, 대부분 앉아서 생활" },
@@ -177,8 +179,17 @@ function maintenanceInfo(today) {
 }
 
 // 추천 섭취 = 유지 + 목표 kg/주 × 7700 ÷ 7, 10kcal 단위   ← 노트북 ⑤
-function targetKcal(maintenance) {
+//   (v0.6-d) 단, 바닥(MIN_TARGET_KCAL) 아래로는 안 내려감. 예전엔 유지 칼로리를 1000으로 직접 넣고 주당 −1kg을 고르면
+//   1000 − 1100 = −100kcal이 "추천"으로 나왔음. 노트북 ⑤에는 바닥이 없음 (앱에만 있는 안전장치)
+function rawTargetKcal(maintenance) {                          // 바닥을 적용하기 전 계산값
   return Math.round((maintenance + nutritionSettings().kgPerWeek * KCAL_PER_KG / 7) / 10) * 10;
+}
+function minTargetKcal() {
+  const p = nutritionSettings().profile;
+  return p && p.sex === "여" ? MIN_TARGET_KCAL_FEMALE : MIN_TARGET_KCAL;
+}
+function targetKcal(maintenance) {
+  return Math.max(minTargetKcal(), rawTargetKcal(maintenance));
 }
 
 function ratioOf(day) {                                        // 그날 목표 비율 (리피드처럼 그날만 바꾼 게 있으면 그것)
@@ -639,6 +650,7 @@ function calorieCard(day, today) {
       <button class="link small" data-action="n-base">${ui.basePanel ? "유지 칼로리 정하기 ▴" : "유지 칼로리 정하기 ▾"}</button>
       ${ui.basePanel ? basePanel(today) : ""}
       ${Math.abs(ratePct) > 1 ? `<p class="notice small">⚠️ 주당 체중의 1%보다 빠른 속도예요 (${ratePct.toFixed(1)}%)</p>` : ""}
+      ${rawTargetKcal(info.maintenance) < target ? `<p class="notice small">⚠️ 계산한 추천 섭취(${kcalText(rawTargetKcal(info.maintenance))}kcal)가 너무 낮아서 ${kcalText(target)}kcal로 맞췄어요. 목표 속도를 늦추거나 유지 칼로리를 확인해 보세요.</p>` : ""}
     </section>`;
 }
 
