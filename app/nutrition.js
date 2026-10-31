@@ -869,15 +869,7 @@ function nutritionPending() {
     + data.deletedMeals.length + data.deletedWeights.length + (data.nutrition && data.nutrition.dirty ? 1 : 0);
 }
 
-async function selectAll(table, columns) {                     // 한 번에 1000줄까지만 오니까 나눠서 다 받기
-  const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const { data: page, error } = await db.from(table).select(columns).range(from, from + 999);
-    if (error) throw error;
-    rows.push(...page);
-    if (page.length < 1000) return rows;
-  }
-}
+// 나눠서 다 받기(selectAll)는 sync.js에 있음 — 운동 받기와 같이 씀 (v0.6-d)
 
 async function syncNutrition() {
   // [1] 폰에서 지운 것 → 인터넷에서도 지우기
@@ -939,7 +931,7 @@ async function syncNutrition() {
   }
 
   // [3] 받기: 인터넷이 기준. 폰에서 올라가 있던(synced) 것 중 인터넷에 없으면 다른 기기에서 지운 것
-  const remoteBody = await selectAll("body_weights", "day, weight, skeletal_muscle_kg, body_fat_pct");
+  const remoteBody = await selectAll("body_weights", "day, weight, skeletal_muscle_kg, body_fat_pct", "day");
   const remoteDays = new Set(remoteBody.map(r => r.day));
   for (const r of remoteBody) {
     const local = data.body[r.day];
@@ -948,7 +940,7 @@ async function syncNutrition() {
   }
   for (const d of Object.keys(data.body)) if (data.body[d].synced && !remoteDays.has(d) && !justUploaded.has(d)) delete data.body[d];
 
-  const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat, grams");
+  const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat, grams", "id");
   const remoteIds = new Set(remoteMeals.map(r => r.id));
   const localIds = new Set(data.meals.map(m => m.id));
   for (const r of remoteMeals) {
@@ -959,7 +951,7 @@ async function syncNutrition() {
   data.meals = data.meals.filter(m => !m.synced || remoteIds.has(m.id) || justUploaded.has(m.id));
 
   if (!data.myFoodsDirty) {                                    // 받기: 다른 기기에서 등록한 내 음식
-    for (const r of await selectAll("my_foods", "name, basis, unit, total, kcal, carb, protein, fat")) {
+    for (const r of await selectAll("my_foods", "name, basis, unit, total, kcal, carb, protein, fat", "name")) {
       data.myFoods[r.name] = { basis: Number(r.basis), unit: r.unit, total: r.total != null ? Number(r.total) : null,
         kcal: Number(r.kcal), c: Number(r.carb), p: Number(r.protein), f: Number(r.fat) };
     }

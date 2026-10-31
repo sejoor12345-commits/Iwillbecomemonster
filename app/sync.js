@@ -13,6 +13,7 @@
 const SUPABASE_URL = "https://nkchwtsjjskiwgakemag.supabase.co";
 const SUPABASE_KEY = "sb_publishable_hotPI28wDcC2qIEQ-YJxXw_xO9D08uQ";   // 공개용 키. 남의 기록은 RLS("내 기록은 나만")가 막아 줌
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const PAGE_ROWS = 1000;              // Supabase가 한 번에 주는 최대 줄 수 (서버 설정 max rows와 같게)
 
 const account = {
   user: null,        // 로그인한 사람 (없으면 null)
@@ -20,6 +21,25 @@ const account = {
   busy: false,       // 지금 동기화 중인가
   message: "",       // 로그인 화면의 안내 · 에러
 };
+
+
+// ---------- 0. 도우미: 표 하나를 끝까지 다 받기 ----------
+
+// Supabase는 한 번에 1000줄까지만 줘서, 기록이 1000개를 넘으면 뒤쪽이 안 옴 → 1000줄씩 나눠서 다 받기
+//   order = 줄 세우는 칸 (나눠 받는 동안 순서가 섞여서 빠지거나 겹치지 않게)
+//   운동 받기(아래 2-1)와 체중 · 식사 받기(nutrition.js)가 같이 씀 (v0.6-d)
+//   Python으로 치면: while True: page = 표[from:from+1000]; rows += page; if len(page) < 1000: break
+async function selectAll(table, columns, order) {
+  const rows = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    let query = db.from(table).select(columns);
+    if (order) query = query.order(order);
+    const { data: page, error } = await query.range(from, from + PAGE_ROWS - 1);
+    if (error) throw error;
+    rows.push(...page);
+    if (page.length < PAGE_ROWS) return rows;
+  }
+}
 
 
 // ---------- 1. 로그인 상태 ----------
@@ -143,10 +163,9 @@ function toLocalWorkout(row) {
 }
 
 async function downloadAll(justUploaded) {
-  // 표 3개를 이름표(id)로 이어서 한 번에 가져오기. RLS 덕분에 내 기록만 온다.
-  const { data: rows, error } = await db.from("workouts")
-    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, superset, sets(set_no, weight, reps, done_at))");
-  if (error) throw error;
+  // 표 3개를 이름표(id)로 이어서 가져오기. RLS 덕분에 내 기록만 온다. 1000개가 넘어도 다 받게 나눠서 (selectAll)
+  const rows = await selectAll("workouts",
+    "id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, superset, sets(set_no, weight, reps, done_at))", "id");
 
   const remoteIds = new Set(rows.map(r => r.id));
   const localIds = new Set(data.workouts.map(w => w.id));
@@ -162,9 +181,7 @@ async function downloadAll(justUploaded) {
     !(w.synced && w.end && !remoteIds.has(w.id) && !justUploaded.has(w.id)));          //     (방금 올린 운동은 절대 안 지움)
   removed = before - data.workouts.length;
 
-  const { data: mine, error: e2 } = await db.from("my_exercises")  // [3] 내가 만든 종목: 폰에 없는 것만 가져오기
-    .select("name, part, range_low, range_high, step");
-  if (e2) throw e2;
+  const mine = await selectAll("my_exercises", "name, part, range_low, range_high, step", "name");   // [3] 내가 만든 종목: 폰에 없는 것만 가져오기
   for (const c of mine) {
     if (dictionaryName(c.name)) continue;                         //     사전에 있는 종목(옛 이름 포함)은 건너뜀
     if (!data.custom[c.name]) data.custom[c.name] = { part: c.part, range: [c.range_low, c.range_high], step: Number(c.step) };
