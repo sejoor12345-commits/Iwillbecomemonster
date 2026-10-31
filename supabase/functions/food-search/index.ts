@@ -4,7 +4,7 @@
 //   들어오는 것: 앱이 보낸 { q: "홀리닭" }  (로그인한 사람만: verify_jwt)
 //   하는 일:     비밀값 FOOD_API_KEY(공공데이터포털 인증키)를 붙여서 식약처 API(03판)에 물어보기
 //                칸: AMT_NUM1 열량 · 3 단백질 · 4 지방 · 6 탄수화물 (100g당), Z10500 제품 중량 — 허닭 도시락으로 검산함
-//                → 앱이 쓰기 쉬운 모양으로 정리 (키는 앱에 절대 안 보냄)
+//                → 앱이 쓰기 쉬운 모양으로 정리 (키는 앱에 절대 안 보냄 — 일부 조각도 안 보냄)
 //   나가는 것:   { items: [ { name, maker, basis: 100, unit: "g", total: 200, kcal, c, p, f } ] }
 //                basis = 영양성분 기준량 (보통 100g), total = 제품 한 개 중량 (모르면 null)
 
@@ -27,13 +27,14 @@ const n = (x: unknown) => { const v = parseFloat(String(x ?? "").replace(/,/g, "
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  const { q, raw } = await req.json().catch(() => ({}));
+  const { q } = await req.json().catch(() => ({}));
   if (!q || String(q).trim().length < 1) return json({ items: [] });
   const key = Deno.env.get("FOOD_API_KEY") ?? "";
   const url = `${API}?serviceKey=${encodeURIComponent(key)}&pageNo=1&numOfRows=${ROWS}&type=json&FOOD_NM_KR=${encodeURIComponent(String(q).trim())}`;
   const res = await fetch(url);
   const text = await res.text();
-  if (raw) return json({ status: res.status, keyCheck: `${key.slice(0, 6)}…${key.slice(-4)} (${key.length}자)`, body: text.slice(0, 8000) });   // 확인용: 식약처 원본 그대로 + 키 앞뒤 몇 자만
+  // (v0.6-d) 확인용 raw 모드(키 앞뒤 몇 자 + 식약처 원본)는 지움 — 로그인한 누구나 키 조각을 볼 수 있었음.
+  //   문제를 다시 찾아야 하면: Supabase 대시보드 → Edge Functions → food-search → Logs 에서 console.log로 보기
   let body;
   try { body = JSON.parse(text); } catch { return json({ error: "식약처 응답을 읽지 못했어요" }, 502); }
   const fail = body?.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnAuthMsg;
