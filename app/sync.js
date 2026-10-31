@@ -103,6 +103,66 @@ function authError(error) {                                       // 자주 나�
 }
 
 
+// ---------- 1-1. 이 폰의 기록은 누구 것? (v0.6-d) ----------
+//   data.ownerId = 이 폰 기록의 주인 계정. 처음 동기화할 때 그 계정으로 정해짐 (그 전 버전 기록도 이때 정해짐)
+//   다른 계정으로 로그인하면: 앞 계정의 기록을 새 계정에 올리거나 폰에서 지우기 전에 꼭 물어봄
+//     [확인] 아직 안 올린 기록만 새 계정으로 옮기기 (올라가 있던 기록은 앞 계정 인터넷에 그대로 있으니 폰에서만 비움)
+//     [취소] → 한 번 더: 폰을 비우고 새 계정 기록만 받기 / 아무것도 안 하고 로그아웃 (먼저 백업 받기)
+//   물어보지 않으면 생기던 일: 앞 계정의 안 올린 기록이 새 계정으로 올라가고, 올라가 있던 기록은 "다른 기기에서 지운 것"으로 보여 폰에서 지워짐
+
+function unsyncedCount() {                                        // 아직 안 올린 기록 수 (진행 중인 운동 포함)
+  return data.workouts.filter(w => !w.synced).length
+    + Object.values(data.body).filter(b => !b.synced).length + data.meals.filter(m => !m.synced).length
+    + (data.myFoodsDirty ? 1 : 0) + (data.nutrition && data.nutrition.dirty ? 1 : 0);
+}
+
+function keepOnlyUnsynced() {                                     // 옮기기: 안 올린 것만 남김
+  data.workouts = data.workouts.filter(w => !w.synced);
+  for (const d of Object.keys(data.body)) if (data.body[d].synced) delete data.body[d];
+  data.meals = data.meals.filter(m => !m.synced);
+  const used = new Set(data.workouts.flatMap(w => w.exercises.map(e => e.name)));   // 남은 운동이 쓰는 내 종목만
+  data.custom = Object.fromEntries(Object.entries(data.custom).filter(([name]) => used.has(name)));
+  data.customDirty = Object.keys(data.custom).length > 0;
+  if (!data.myFoodsDirty) data.myFoods = {};
+  if (data.nutrition && !data.nutrition.dirty) data.nutrition = null;
+  if (!data.hiddenDirty) data.hiddenGraphs = [];
+  // 지울 목록은 앞 계정 것 → 버림 (특히 체중은 날짜로 지워서, 남겨 두면 새 계정의 같은 날 체중이 지워짐)
+  Object.assign(data, { deleted: [], deletedMeals: [], deletedWeights: [], deletedCustoms: [] });
+  if (data.currentId && !data.workouts.some(w => w.id === data.currentId)) data.currentId = null;
+}
+
+function clearLocal() {                                           // 비우기: 처음 연 앱처럼
+  data = { workouts: [], currentId: null, custom: {}, ...EMPTY_EXTRAS() };
+  if (ui.screen === "workout" || ui.screen === "summary") ui.screen = "home";
+}
+
+async function checkOwner() {                                     // true = 동기화 계속, false = 멈춤
+  const me = account.user;
+  if (!data.ownerId || data.ownerId === me.id) {                  // 처음이거나 같은 계정 → 그대로
+    if (data.ownerId !== me.id || data.ownerEmail !== me.email) { data.ownerId = me.id; data.ownerEmail = me.email; save(); }
+    return true;
+  }
+  const before = data.ownerEmail || "다른 계정";
+  const n = unsyncedCount();
+  if (n && confirm(`이 폰의 기록은 ${before} 계정으로 쓰던 거예요. 아직 안 올린 기록이 ${n}개 있어요.\n\n`
+      + `[확인] 안 올린 기록 ${n}개를 지금 계정(${me.email})으로 옮기기\n[취소] 옮기지 않기 (다음 질문으로)`)) {
+    keepOnlyUnsynced();
+  } else if (confirm(`${n ? `안 올린 기록 ${n}개는 사라져요. ` : ""}이 폰에서 ${before} 계정의 기록을 비우고 ${me.email} 기록만 받을까요?\n`
+      + `(올라가 있던 기록은 ${before} 계정에 그대로 있어요)\n\n[취소] 아무것도 안 하고 로그아웃 — 먼저 백업을 받고 싶을 때`)) {
+    clearLocal();
+  } else {
+    await db.auth.signOut();
+    account.user = null;
+    account.status = "";
+    return false;
+  }
+  Object.assign(data, { ownerId: me.id, ownerEmail: me.email });
+  save();
+  if (typeof toast === "function") toast(`${me.email} 계정으로 바꿨어요`);
+  return true;
+}
+
+
 // ---------- 2. 올리기 ----------
 
 function pendingCount() {                                         // 아직 안 올린 것 개수
@@ -216,6 +276,8 @@ function sameWorkout(a, b) {
 async function syncNow() {
   if (!account.user || account.busy || !navigator.onLine) return;
   account.busy = true;
+  const go = await checkOwner().catch(() => false);               // 다른 계정의 기록이면 먼저 물어봄 (1-1)
+  if (!go) { account.busy = false; return render(); }
   account.status = "동기화 중…";
   refreshIfSafe();
   try {
