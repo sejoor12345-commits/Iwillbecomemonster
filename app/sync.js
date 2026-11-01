@@ -15,6 +15,7 @@ const SUPABASE_URL = "https://nkchwtsjjskiwgakemag.supabase.co";
 const SUPABASE_KEY = "sb_publishable_hotPI28wDcC2qIEQ-YJxXw_xO9D08uQ";   // 공개용 키. 남의 기록은 RLS("내 기록은 나만")가 막아 줌
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const PAGE_ROWS = 1000;              // Supabase가 한 번에 주는 최대 줄 수 (서버 설정 max rows와 같게)
+let syncUserId = null;               // 지금 동기화하는 계정 (중간에 로그아웃되면 받기를 멈추려고, v0.6-d)
 
 const account = {
   user: null,        // 로그인한 사람 (없으면 null)
@@ -37,6 +38,8 @@ async function selectAll(table, columns, order) {
     if (order) query = query.order(order);
     const { data: page, error } = await query.range(from, from + PAGE_ROWS - 1);
     if (error) throw error;
+    // 받는 동안 로그아웃되면(세션이 사라지면) 그 뒤 요청은 에러 없이 "0줄"로 옴 → 그대로 쓰면 폰 기록이 "다른 기기에서 지운 것"으로 지워짐
+    if (syncUserId && (!account.user || account.user.id !== syncUserId)) throw new Error("로그인이 바뀌어서 동기화를 멈췄어요");
     rows.push(...page);
     if (page.length < PAGE_ROWS) return rows;
   }
@@ -86,6 +89,7 @@ async function signUp(email, password) {
 }
 
 async function signOut() {
+  if (account.busy) return alert("동기화 중이에요. 끝나면 다시 눌러 주세요.");   // 중간에 끊으면 받기가 빈 결과로 와서 위험 (selectAll)
   if (!confirm("로그아웃할까요? 폰에 있는 기록은 그대로 남아요.")) return;
   await db.auth.signOut();
   account.status = "";
@@ -284,6 +288,7 @@ async function syncNow() {
   account.busy = true;
   const go = await checkOwner().catch(() => false);               // 다른 계정의 기록이면 먼저 물어봄 (1-1)
   if (!go) { account.busy = false; return render(); }
+  syncUserId = account.user.id;
   account.status = "동기화 중…";
   refreshIfSafe();
   try {
@@ -328,6 +333,7 @@ async function syncNow() {
     account.status = `동기화 실패 — 다음에 다시 시도해요 (${authError(error)})`;
   }
   account.busy = false;
+  syncUserId = null;
   refreshIfSafe();
 }
 

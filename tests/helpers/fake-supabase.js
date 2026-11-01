@@ -8,6 +8,7 @@
 //   하는 일:     앱(sync.js · nutrition.js)이 쓰는 만큼만 흉내 냄
 //                - from(표).select / order / range / eq / in / upsert / insert / delete
 //                - RLS("내 기록은 나만"): 로그인한 사람의 줄만 보이고, 남의 id로 upsert하면 에러
+//                  로그아웃된 뒤의 요청은 에러 없이 빈 결과 (진짜 Supabase도 그래서, "다 지워진 것"처럼 보일 수 있음)
 //                - 한 번에 최대 1000줄 (진짜 Supabase처럼) → 나눠 받기(selectAll) 시험용
 //                - workouts를 고르면 workout_exercises · sets를 안에 넣어 줌 (진짜처럼)
 //   나가는 것:   { client, state }  client = 앱에 줄 가짜, state = 시험에서 들여다볼 표 · 부른 기록(calls)
@@ -44,7 +45,11 @@
       const me = uid();
       state.calls.push({ table: q.table, op: q.op, range: q.range, order: q.order, filters: q.filters.map(f => f.text),
         rows: q.payload ? q.payload.length : 0, user: me });
-      if (!me) return { data: null, error: { message: "JWT expired (fake: not logged in)" } };
+      if (!me) {                     // 로그인 안 한(anon) 요청 — 진짜처럼: RLS가 다 가려서 고르기 · 지우기는 에러 없이 0줄, 넣기는 RLS 에러
+        if (q.op === "select") return { data: [], error: null };
+        if (q.op === "delete") return { data: null, error: null };
+        return { data: null, error: { message: `new row violates row-level security policy for table "${q.table}"` } };
+      }
       if (state.failOn) { const message = state.failOn(q); if (message) return { data: null, error: { message } }; }
       const table = state.tables[q.table];
       if (!table) return { data: null, error: { message: `relation "${q.table}" does not exist` } };

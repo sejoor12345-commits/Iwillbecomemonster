@@ -85,6 +85,32 @@ test("B1: 올리는 동안 같은 식사 · 체중을 또 고치면 새 값이 �
   assert.deepEqual([fake.state.tables.meals[0].kcal, fake.state.tables.body_weights[0].weight], [999, 81.5]);
 });
 
+test("B3: 동기화 중에 로그아웃해도 폰 기록이 안 지워짐 (로그아웃 뒤 받기는 빈 결과라 '다른 기기에서 지운 것'처럼 보였음)", async () => {
+  let app, hit = false;
+  const w1 = workout("w1", "가슴", "2026-10-20", [["Bench press", 80, [8]]], { synced: true });
+  const fake = createFakeSupabase({ session: { user: A }, failOn: q => {      // 식사를 올리는 중에 로그아웃 (세션이 사라짐)
+    if (hit || q.table !== "meals" || q.op !== "upsert") return;
+    hit = true;
+    fake.state.session = null;                                               // (진짜는 로그아웃 · 다른 기기에서 "모든 기기 로그아웃" 등)
+    fake.state.listeners.forEach(cb => cb("SIGNED_OUT", null));
+  } });
+  fake.state.addWorkout(A.id, w1);
+  fake.state.tables.meals.push(remoteMeal(A, "m1", 500));
+  app = loadApp({ data: baseData({ ownerId: A.id, workouts: [w1], meals: [meal("m1", 500), meal("m2", 300, { synced: false })],
+    body: { "2026-10-29": { w: 82, synced: true } } }), fake });
+  await app.settle();
+  assert.deepEqual(app.get("[data.workouts.length, data.meals.length, Object.keys(data.body).length]"), [1, 2, 1]);
+  assert.match(app.get("account.status"), /동기화 실패/);
+});
+
+test("B3: 동기화 중에는 로그아웃 버튼이 기다리라고 안내 (로그아웃 안 함)", async () => {
+  const { app, fake } = await open(baseData({ ownerId: A.id }), { session: { user: A } });
+  app.run("account.busy = true");
+  await app.run("signOut()");
+  assert.equal(fake.state.session.user.id, A.id);
+  assert.match(app.dialogs.at(-1).msg, /동기화 중이에요/);
+});
+
 // ---------- B4: 1000줄이 넘어도 다 받기 ----------
 
 test("B4: 운동 1200개 · 식사 1500개 — 1000줄씩 나눠 다 받고, 1000번째 뒤 운동을 지우지 않음", async () => {
