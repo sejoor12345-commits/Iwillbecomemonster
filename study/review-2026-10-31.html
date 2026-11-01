@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v0.5–v0.6 코드 복습 노트</title>
+<style>
+:root {
+  --bg: #f6f6f4; --surface: #ffffff; --text: #141413; --muted: #5f5e5a; --line: #e3e2de;
+  --accent: #2a78d6; --accent-soft: #e4effb; --code-bg: #f1f0ec; --warn-soft: #fdf1e7;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --surface: #1f1f1e; --text: #f2f2ef; --muted: #a8a79f; --line: #34332f;
+    --accent: #5598e7; --accent-soft: #1d2d42; --code-bg: #262624; --warn-soft: #3a2a1d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --surface: #1f1f1e; --text: #f2f2ef; --muted: #a8a79f; --line: #34332f;
+  --accent: #5598e7; --accent-soft: #1d2d42; --code-bg: #262624; --warn-soft: #3a2a1d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  font-size: 16px; line-height: 1.6; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+header.top h1 { font-size: 26px; margin: 0 0 4px; }
+header.top p { margin: 0; color: var(--muted); }
+h2 { display: flex; align-items: center; gap: 10px; font-size: 21px; margin: 0 0 6px; }
+h2 .num { display: inline-grid; place-items: center; min-width: 32px; height: 32px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: 16px; }
+h2 .time { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+h3 { font-size: 17px; margin: 22px 0 8px; }
+.sec { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 18px; margin: 18px 0; }
+.goal { margin: 0 0 12px; color: var(--muted); }
+.small, span.small { font-size: 13px; color: var(--muted); }
+.box .small { display: block; }
+code { font-family: ui-monospace, Menlo, Consolas, "D2Coding", monospace; font-size: 0.88em; background: var(--code-bg);
+  padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; }
+.code, .cell { border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; overflow: hidden; background: var(--code-bg); }
+.code pre, .cell pre { padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.5; }
+.code pre code, .cell pre code { background: none; padding: 0; font-size: inherit; }
+.code-head, .cell-head { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.cell-head span { font-weight: 700; color: var(--accent); }
+.run { font: inherit; font-size: 13px; font-weight: 700; color: #fff; background: var(--accent); border: none;
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.out { border-top: 1px dashed var(--line); background: var(--surface); color: var(--text); white-space: pre-wrap; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14.5px; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid var(--line); }
+th { font-size: 13px; color: var(--muted); border-top: none; }
+table.plan td:first-child { width: 24px; }
+table.plan td:nth-child(3) { white-space: nowrap; }
+table.pairs td:nth-child(2) { color: var(--muted); font-size: 13px; }
+.flow { display: grid; justify-items: center; gap: 4px; margin: 12px 0; }
+.flow .box { width: 100%; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; text-align: center; }
+.flow .arrow { color: var(--muted); font-size: 14px; }
+.flow .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.questions { margin-top: 18px; border-radius: 12px; background: var(--warn-soft); padding: 14px 16px 6px; }
+.q-title { font-weight: 700; margin-bottom: 6px; }
+.questions ol { list-style: none; padding: 0; margin: 0; }
+.questions li { margin: 0 0 12px; }
+.qn { display: inline-block; min-width: 46px; color: var(--accent); }
+.blank { height: 28px; border-bottom: 1px dashed var(--line); margin: 2px 0 0 46px; }
+.answers .ans { display: grid; grid-template-columns: 56px 1fr; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.answers .ans pre { background: var(--code-bg); border-radius: 8px; padding: 8px 10px; margin: 0 0 6px; font-size: 13px;
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Menlo, Consolas, monospace; }
+ol.explain li { margin-bottom: 10px; }
+a { color: var(--accent); }
+@media (max-width: 560px) {
+  .flow .row3 { grid-template-columns: 1fr; }
+  .sec { padding: 16px 14px; }
+  h2 { font-size: 19px; }
+}
+@media print {
+  /* 인쇄용: A4 · 흑백으로 찍어도 읽히게 · 잉크 아끼기 · 손으로 답 쓸 칸 */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --line: #bbb;
+    --accent: #000; --accent-soft: #fff; --code-bg: #f4f4f4; --warn-soft: #fff; color-scheme: light;
+  }
+  @page { size: A4; margin: 14mm 15mm 16mm; }
+  body { font-size: 9.6pt; line-height: 1.45; }
+  main { max-width: none; padding: 0; }
+  header.top h1 { font-size: 16pt; }
+  header.top p { font-size: 9pt; margin-bottom: 4mm; }
+  .sec { border: none; border-top: 1.5pt solid #000; border-radius: 0; padding: 3mm 0 0; margin: 0 0 6mm; }
+  h2 { font-size: 13pt; margin-bottom: 1mm; break-after: avoid; }
+  h2 .num { display: inline; min-width: 0; height: auto; background: none; color: #000; font-size: 13pt; padding: 0; }
+  h2 .num::after { content: "."; }
+  h2 .time { font-size: 8.5pt; border-color: #888; padding: 0 6px; }
+  h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+  p, ul, ol { margin: 1.5mm 0; }
+  .goal { font-size: 9pt; margin-bottom: 2mm; }
+  .small, span.small { font-size: 8pt; }
+  code { font-size: 8.4pt; padding: 0 2px; background: none; }
+  .code, .cell { border: 0.6pt solid #999; border-radius: 3px; margin: 2mm 0; background: #fff; }
+  .code-head, .cell-head { font-size: 7.5pt; padding: 1mm 2.5mm; background: #fff; border-bottom: 0.6pt solid #ccc; }
+  .cell-head span { color: #000; }
+  .code pre, .cell pre { font-size: 8pt; line-height: 1.35; padding: 2mm 2.5mm; white-space: pre-wrap; background: #f6f6f6; }
+  .run, .out { display: none !important; }
+  table { font-size: 8.6pt; margin: 2mm 0; }
+  th, td { padding: 1.2mm 1.5mm; border-top: 0.5pt solid #bbb; }
+  th { font-size: 8pt; color: #000; border-bottom: 0.8pt solid #000; }
+  .flow { gap: 1mm; margin: 2mm 0; }
+  .flow .box { border: 0.6pt solid #000; border-radius: 3px; padding: 1.5mm 2mm; font-size: 9pt; }
+  .flow .arrow { font-size: 9pt; line-height: 1; }
+  .flow .row3 { gap: 2mm; }
+  .questions { border: 0.8pt solid #000; border-radius: 3px; padding: 2.5mm 3mm 0; margin-top: 3mm; }
+  .q-title { font-size: 9pt; margin-bottom: 1.5mm; }
+  .questions li { margin: 0 0 2mm; font-size: 9.4pt; }
+  .qn { min-width: 13mm; color: #000; }
+  .blank { height: 9mm; margin-left: 13mm; border-bottom: 0.5pt dotted #777;
+           background: repeating-linear-gradient(to bottom, transparent 0, transparent 4.2mm, #ccc 4.2mm, #ccc 4.5mm); }
+  .answers { break-before: page; }
+  .answers .ans { grid-template-columns: 14mm 1fr; padding: 1.5mm 0; font-size: 9pt; }
+  .answers .ans pre { font-size: 7.8pt; padding: 1.5mm 2mm; background: #f6f6f6; border-radius: 2px; }
+  .code, .cell, .questions li, .answers .ans, tr, .flow, .flow .box { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <h1>v0.5 ~ v0.6 코드 복습 노트</h1>
+  <p>2026-10-31 · 약 2시간 · 인터넷 없이 · 종목 사전부터 v0.6-d 버그 고치기까지, 내 앱의 진짜 코드로</p>
+</header>
+
+<section class="sec" id="s0">
+  <h2><span class="num">0</span>오늘 복습 쓰는 법<span class="time">5분</span></h2>
+  <p class="goal">🎯 v0.5 ~ v0.6에서 늘어난 코드를 "어디를 고치면 되나" 수준으로 다시 잡고, 조용한 버그 두 개(B1 · B3)를 내 말로 설명하기</p>
+  
+<ul>
+  <li>10/10 노트와 같은 방식이야: <b>순서대로</b>, 막히면 ☆ 표시하고 넘어가기.</li>
+  <li><b>실행 전에 예상</b>을 종이에 먼저 적고 → ▶ 실행(또는 맨 아래 <a href="#answers">정답</a>)과 비교. 예상 없이 실행부터 누르면 남는 게 거의 없어.</li>
+  <li>실행 셀은 인터넷 없이 이 페이지 안에서 돌아가. 크롬 F12 → Console에 붙여넣어도 돼. 코드는 <b>지금 네 앱의 진짜 코드</b>를 줄인 거야 (줄인 곳은 <code>…</code>).</li>
+  <li>이번 노트의 새 코너: <b>"시험(test) 읽기"</b>(6장). v0.6-d부터 저장소에 시험 37개가 생겼거든.</li>
+</ul>
+<table class="plan"><thead><tr><th></th><th>파트</th><th>시간</th><th>핵심</th></tr></thead><tbody><tr><td>☐</td><td>1. v0.5 ~ v0.6 지도</td><td>15분</td><td>파일 11개 + tests · data에 늘어난 칸 · 불러오는 순서</td></tr><tr><td>☐</td><td>2. 종목 사전</td><td>15분</td><td>compactName · dictionaryName · Python dict로 읽기</td></tr><tr><td>☐</td><td>3. 분할 조합 · 슈퍼세트</td><td>15분</td><td>exerciseSplit = w.split · e.ss</td></tr><tr><td>☐</td><td>4. 먹은 양 g → 비율 계산</td><td>10분</td><td>fillFromPick · round1</td></tr><tr><td>☐</td><td>5. 동기화 다시 보기 + 조용한 버그 B1 · B3</td><td>25분</td><td>synced · justUploaded · ownerId</td></tr><tr><td>☐</td><td>6. 시험(test) 읽기</td><td>15분</td><td>assert · ok / not ok · 가짜 Supabase</td></tr><tr><td>☐</td><td>7. 고칠 곳 찾기</td><td>15분</td><td>맨 위 설정 이름 · 같이 고쳐야 하는 곳</td></tr><tr><td>☐</td><td>8. 조용한 버그 도감 + 말로 설명하기</td><td>10분</td><td>에러 없이 틀리는 것들</td></tr></tbody></table>
+
+</section>
+<section class="sec" id="s1">
+  <h2><span class="num">1</span>v0.5 ~ v0.6 지도 — 무엇이 늘었나<span class="time">15분</span></h2>
+  <p class="goal">🎯 "이걸 고치고 싶다" → 어느 파일을 열지 바로 떠올리기</p>
+  
+<h3>1-1. 파일 (10/10 때 9개 → 지금 11개 + 시험 폴더)</h3>
+<table class=""><thead><tr><th>파일</th><th>하는 일</th><th>언제 생김</th></tr></thead><tbody><tr><td><code>exercises.js</code></td><td>종목 <b>사전</b>: 정식 이름 · 한국어 · 별명 · 옛 이름 → 하나로</td><td>v0.5-a</td></tr><tr><td><code>exercise-media.js</code></td><td>종목별 GIF · 근육 · 수행 방법 (GIF © Gym visual — 공개 전에 빼기)</td><td>v0.5-k</td></tr><tr><td><code>effects.js</code></td><td>알림 한 줄(toast) · 운동 시작 / 끝 애니메이션</td><td>v0.5-l</td></tr><tr><td><code>exercise-detail.js</code></td><td>종목 상세 화면 (요약 · 기록 · 자세)</td><td>v0.5-k</td></tr><tr><td><code>nutrition.js</code></td><td>+ 식약처 검색 · 먹은 양 g · 내 음식</td><td>v0.5-g · v0.6-a</td></tr><tr><td><code>sync.js</code></td><td>+ 나눠 받기(selectAll) · 이 폰 기록의 주인(ownerId)</td><td>v0.6-d</td></tr><tr><td><code>supabase/functions/food-search</code></td><td>서버 쪽 작은 함수: 식약처 키를 숨겨 두고 대신 물어봄</td><td>v0.5-g</td></tr><tr><td><code>tests/</code></td><td>자동 시험 — 앱에는 안 들어감</td><td>v0.6-d</td></tr></tbody></table>
+<h3>1-2. 불러오는 순서 (index.html) — 왜 effects.js가 app.js보다 위?</h3>
+<div class="code"><div class="code-head">index.html (줄임)</div><pre><code>&lt;script src=&quot;exercises.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;exercise-media.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;effects.js&quot;&gt;&lt;/script&gt;        ← toast()를 다른 파일들이 부름
+&lt;script src=&quot;app.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;nutrition.js&quot;&gt;&lt;/script&gt;     ← sync.js보다 먼저 (10/10 복습의 그 버그)
+&lt;script src=&quot;progress.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;exercise-detail.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;vendor/supabase-2.117.2.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;sync.js&quot;&gt;&lt;/script&gt;          ← 여기서 바로 동기화 시작
+&lt;script src=&quot;import.js&quot;&gt;&lt;/script&gt;</code></pre></div>
+<p>사실 <code>toast</code>는 버튼을 누른 <b>뒤에</b> 불려서 순서가 틀려도 대부분 괜찮아. 그래도 앱은 <code>if (typeof toast === "function")</code>로 한 번 더 확인해 — Python의 <code>if callable(globals().get("toast")):</code> 같은 안전장치야.</p>
+<h3>1-3. data에 늘어난 칸</h3>
+<p><code>myFoods</code>, <code>myFoodsDirty</code>, <code>deletedCustoms</code>, <code>ownerId</code>, <code>ownerEmail</code>. 예전에 저장한 data에는 이 칸들이 없지만 <code>load()</code>가 <code>{ ...EMPTY_EXTRAS(), ...saved }</code>로 빈 칸을 먼저 깔아서 에러가 안 나. 10/10의 실행 셀 2-3과 같은 원리.</p>
+
+<div class="cell" data-id="1-1">
+  <div class="cell-head"><span>실행 셀 1-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const EMPTY_EXTRAS = () =&gt; ({ meals: [], myFoods: {}, myFoodsDirty: false, ownerId: null });
+const saved = { workouts: [1], meals: [{ id: &quot;f1&quot; }] };    // v0.5 때 저장한 것 (myFoods · ownerId 칸이 없음)
+const data = { ...EMPTY_EXTRAS(), ...saved };
+
+console.log(Object.keys(data));              // ①
+console.log(data.meals.length, data.ownerId); // ②
+console.log(data.myFoods[&quot;홀리닭&quot;]);          // ③</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q1-1</b> 실행 셀 1-1의 ①~③을 예상해 봐. ③은 왜 에러가 아닐까?<div class="blank"></div></li><li><b class="qn">Q1-2</b> 어느 파일을 열까? (가) 종목 상세의 "자세" 탭 설명 글 (나) 운동 끝 색종이 개수 (다) "BB row"를 "Barbell row"로 알아듣게 하는 곳 (라) 식약처 결과를 앱 모양으로 바꾸는 곳<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s2">
+  <h2><span class="num">2</span>종목 사전 — 이름 하나로 모으기<span class="time">15분</span></h2>
+  <p class="goal">🎯 "사레레" · "SLL" · "Side Lateral Raise"가 왜 같은 종목으로 묶이는지 설명하기</p>
+  
+<p>사전이 없으면 그래프 · 다음 무게가 <b>이름마다 따로</b> 계산돼. 그래서 이름을 <b>비교용 글자</b>로 바꾼 뒤(소문자 + 띄어쓰기 · "-" 빼기) 표에서 찾아.</p>
+<table class="pairs"><thead><tr><th>JS</th><th>Python</th></tr></thead><tbody><tr><td><code>s.toLowerCase().replace(/[\s\-]/g, "")</code></td><td><code>re.sub(r"[\s\-]", "", s.lower())</code></td></tr><tr><td><code>const NAME_INDEX = {{}}</code> + <code>NAME_INDEX[k] = name</code></td><td><code>name_index = {{}}</code> + <code>name_index[k] = name</code></td></tr><tr><td><code>for (const [name, e] of Object.entries(EXERCISES))</code></td><td><code>for name, e in EXERCISES.items():</code></td></tr><tr><td><code>[name, e.ko, ...e.aliases]</code></td><td><code>[name, e["ko"], *e["aliases"]]</code></td></tr><tr><td><code>NAME_INDEX[k] || null</code></td><td><code>name_index.get(k)</code></td></tr></tbody></table>
+
+<div class="cell" data-id="2-1">
+  <div class="cell-head"><span>실행 셀 2-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const compactName = s =&gt; String(s).toLowerCase().replace(/[\s\-]/g, &quot;&quot;);
+const EXERCISES = {
+  &quot;Barbell row&quot;:        { ko: &quot;바벨 로우&quot;, aliases: [&quot;BB row&quot;] },
+  &quot;Side lateral raise&quot;: { ko: &quot;사이드 레터럴 레이즈&quot;, aliases: [&quot;SLL&quot;, &quot;사레레&quot;] },
+};
+const NAME_INDEX = {};
+for (const [name, e] of Object.entries(EXERCISES))
+  for (const n of [name, e.ko, ...e.aliases]) NAME_INDEX[compactName(n)] = name;
+const dictionaryName = raw =&gt; NAME_INDEX[compactName(raw)] || null;
+
+console.log(compactName(&quot;Side-Lateral Raise&quot;));            // ①
+console.log(dictionaryName(&quot;bb row&quot;), dictionaryName(&quot;사레레&quot;)); // ②
+console.log(dictionaryName(&quot;Bench press&quot;));                // ③
+console.log(Object.keys(NAME_INDEX).length);               // ④</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p>진짜 앱에서는 여기에 <code>LEGACY_NAMES</code>(옛 이름: Smith SLL → Cable side lateral raise …)도 같이 넣어. 그리고 앱을 열 때 <code>canonicalizeData()</code>가 예전 기록의 이름을 바꾸고 <code>synced = false</code>로 해서 다시 올려.</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q2-1</b> 실행 셀 2-1의 ①~④를 예상해 봐. ④는 몇 개일까? (하나씩 세어 봐)<div class="blank"></div></li><li><b class="qn">Q2-2</b> 메모에 <code>Lat Pull-Down</code>이라고 적었는데 사전의 정식 이름이 <code>Lat pulldown</code>, 별명이 <code>LPD</code>뿐이야. 찾아질까? compactName으로 둘을 바꿔서 비교해 봐.<div class="blank"></div></li><li><b class="qn">Q2-3</b> <b>고칠 곳</b>: 메모에서 "렛풀"이라고도 쓰고 싶어. 어느 파일의 어디에 무엇을 더하면 될까? (노트북도!)<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s3">
+  <h2><span class="num">3</span>분할 조합 · 슈퍼세트<span class="time">15분</span></h2>
+  <p class="goal">🎯 "어깨+팔" 날의 지난번 기록이 어디서 오는지, 슈퍼세트가 어떻게 이어지는지 따라가기</p>
+  
+<h3>3-1. 분할 조합 = 그 자체로 하나의 분할 (v0.6-b, 네가 정한 규칙)</h3>
+<div class="code"><div class="code-head">exercises.js</div><pre><code>function exerciseSplit(w, name) {
+  return w.split;          // &quot;어깨+팔&quot; 그대로. 예전엔 종목 부위로 쪼갰는데, 네가 &quot;조합끼리 따로&quot;로 정함
+}</code></pre></div>
+<p>함수가 한 줄이라도 <b>이름을 붙여 둔 이유</b>: 규칙을 바꾸고 싶으면 이 한 곳만 고치면 지난번 기록 · 다음 무게 · 그래프가 다 같이 바뀌어.</p>
+
+<div class="cell" data-id="3-1">
+  <div class="cell-head"><span>실행 셀 3-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const workouts = [                                  // 오래된 것 → 최근
+  { split: &quot;어깨+팔&quot;, ex: { &quot;Barbell curl&quot;: 30 } },
+  { split: &quot;가슴+팔&quot;, ex: { &quot;Barbell curl&quot;: 40 } },
+  { split: &quot;팔&quot;,      ex: { &quot;Barbell curl&quot;: 35 } },
+];
+function lastTime(split, name) {                     // 같은 분할(조합 그대로)의 지난번 무게
+  const past = workouts.filter(w =&gt; w.split === split &amp;&amp; name in w.ex).reverse();
+  return past.length ? past[0].ex[name] : null;
+}
+console.log(lastTime(&quot;어깨+팔&quot;, &quot;Barbell curl&quot;));   // ①
+console.log(lastTime(&quot;팔&quot;, &quot;Barbell curl&quot;));        // ②
+console.log(lastTime(&quot;등+팔&quot;, &quot;Barbell curl&quot;));     // ③
+console.log(&quot;어깨+팔&quot;.split(&quot;+&quot;));                  // ④</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<h3>3-2. 슈퍼세트: e.ss = 다음 종목과 묶임</h3>
+
+<div class="cell" data-id="3-2">
+  <div class="cell-head"><span>실행 셀 3-2</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const exs = [{ name: &quot;Cable push down&quot;, ss: true }, { name: &quot;Overhead triceps extension&quot; }, { name: &quot;Dips&quot; }];
+const supersetNext = i =&gt; !!exs[i].ss &amp;&amp; i + 1 &lt; exs.length;   // i번 종목 다음에 묶인 종목이 이어지나
+
+console.log(supersetNext(0), supersetNext(1), supersetNext(2)); // ①
+exs[2].ss = true;                                               // 마지막 종목에 ss를 켜면?
+console.log(supersetNext(2));                                   // ②
+console.log(!!undefined, !!&quot;yes&quot;);                              // ③</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q3-1</b> 실행 셀 3-1의 ①~④를 예상해 봐. ③은 "팔" 기록이 있는데 왜 그 값이 아닐까?<div class="blank"></div></li><li><b class="qn">Q3-2</b> 실행 셀 3-2의 ①~③을 예상해 봐. <code>!!</code>는 Python의 무엇일까?<div class="blank"></div></li><li><b class="qn">Q3-3</b> <b>고칠 곳</b>: "어깨+팔 날의 Barbell curl도 그냥 팔 날 기록과 합쳐서 보고 싶다"로 마음이 바뀌면, 어느 함수를 고치면 될까? (코드는 안 써도 돼)<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s4">
+  <h2><span class="num">4</span>먹은 양 g → 비율 계산 (v0.6-a)<span class="time">10분</span></h2>
+  <p class="goal">🎯 g을 바꾸면 칼로리 · 탄단지가 왜 같이 바뀌는지 손으로 계산하기</p>
+  
+<p>식약처 · 내 음식의 숫자는 <b>기준량당</b>(보통 100g당)이야. 먹은 양 ÷ 기준량 = <b>몇 배</b>(<code>k</code>)를 구해서 전부 같은 배수로 곱해.</p>
+
+<div class="cell" data-id="4-1">
+  <div class="cell-head"><span>실행 셀 4-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const round1 = x =&gt; Math.round(x * 10) / 10;
+const pick = { name: &quot;허닭 도시락&quot;, basis: 100, kcal: 182, c: 21.3, p: 12.1, f: 5.4 };   // 100g당
+
+function fill(g) {                                  // nutrition.js fillFromPick의 계산 부분
+  const k = g / pick.basis;
+  return { kcal: Math.round(pick.kcal * k), c: round1(pick.c * k), p: round1(pick.p * k), f: round1(pick.f * k) };
+}
+console.log(fill(330));        // ① 330g 먹음
+console.log(fill(50));         // ② 50g만 먹음
+console.log(21.3 * 3.3);       // ③ round1이 없으면</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p>화면은 다시 그리지 않고 <code>document.getElementById("m-kcal").value = …</code>로 <b>칸의 숫자만</b> 바꿔. 타자 치는 중에 render()를 부르면 칸이 지워지니까 (10/10 4-3의 함정).</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q4-1</b> 실행 셀 4-1의 ①~③을 예상해 봐. ③은 왜 70.29가 아닐까?<div class="blank"></div></li><li><b class="qn">Q4-2</b> 넣은 음식을 고칠 때(<code>scaleEdit</code>)는 기준량 대신 <b>원래 먹은 g</b>을 기준으로 해: <code>k = 새 g ÷ 원래 g</code>. 330g · 601kcal을 165g으로 고치면 몇 kcal?<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s5">
+  <h2><span class="num">5</span>동기화 다시 보기 + 조용한 버그 B1 · B3<span class="time">25분</span></h2>
+  <p class="goal">🎯 "다른 기기에서 고친 식사"와 "다른 계정으로 로그인"에서 무슨 일이 있었고, 무엇을 바꿨는지 내 말로</p>
+  
+<h3>5-1. 순서 복습: 지우기 → 올리기 → 받기</h3>
+<div class="flow">
+  <div class="box"><b>syncNow()</b> — 앱 열 때 · 로그인 · 운동 끝 · 인터넷 다시 연결 · 식단 바꿀 때</div><div class="arrow">↓</div>
+  <div class="box">0. (v0.6-d) <b>checkOwner()</b> — 이 폰 기록의 주인이 지금 계정인가?</div><div class="arrow">↓</div>
+  <div class="row3">
+    <div class="box">1. 지우기<br><span class="small">폰에서 지운 것 → 인터넷에서도</span></div>
+    <div class="box">2. 올리기<br><span class="small"><code>synced: false</code>인 것 → upsert → <code>justUploaded</code>에 적기</span></div>
+    <div class="box">3. 받기<br><span class="small">인터넷 기준으로 폰 맞추기 (v0.6-d: 1000줄씩 나눠서)</span></div>
+  </div>
+</div>
+<table class="pairs"><thead><tr><th>JS</th><th>Python</th><th>앱에서</th></tr></thead><tbody><tr><td><code>new Set(list)</code> · <code>s.has(x)</code></td><td><code>set(list)</code> · <code>x in s</code></td><td>justUploaded, remoteIds</td></tr><tr><td><code>new Map(...)</code> · <code>m.get(k)</code></td><td><code>dict(...)</code> · <code>d.get(k)</code></td><td>id → 몇 번째 줄 (v0.6-d)</td></tr><tr><td><code>list.findIndex(m =&gt; …)</code></td><td><code>next((i for i, m in enumerate(list) if …), -1)</code></td><td>없으면 −1</td></tr><tr><td><code>confirm("…")</code></td><td><code>input("…(y/n)") == "y"</code></td><td>계정 확인 창 (확인 = true)</td></tr><tr><td><code>await</code> · <code>throw</code> · <code>try/catch</code></td><td><code>await</code> · <code>raise</code> · <code>try/except</code></td><td>실패하면 "동기화 실패"</td></tr></tbody></table>
+
+<h3>5-2. B1 — 다른 기기에서 고친 식사가 이 폰에 안 바뀜</h3>
+<p><b>비유</b>: 칠판(Supabase) 하나, 공책 두 권(폰 A · 폰 B). 폰 B는 "칠판에 있는데 <b>내 공책에 없는 줄</b>만 베껴 적기"를 했어. 그래서 폰 A가 칠판의 420을 600으로 고쳐도, 폰 B 공책에는 이미 420줄이 있으니까 <b>그냥 건너뜀</b> → 영원히 420. 에러는 하나도 없어.</p>
+<p><b>고친 규칙</b>: 내 공책의 줄이 <b>이미 칠판에 옮겨 적었던 줄</b>(<code>synced: true</code>)이면 칠판이 기준 → 칠판 값으로 바꿔 적기. 내가 고치고 아직 안 옮긴 줄(<code>synced: false</code>)과 방금 옮긴 줄(<code>justUploaded</code>)은 내 공책이 최신이니까 그대로.</p>
+
+<div class="cell" data-id="5-1">
+  <div class="cell-head"><span>실행 셀 5-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const local  = [{ id: &quot;m1&quot;, kcal: 420, synced: true }, { id: &quot;m2&quot;, kcal: 500, synced: false }];
+const remote = [{ id: &quot;m1&quot;, kcal: 600 }, { id: &quot;m2&quot;, kcal: 300 }, { id: &quot;m3&quot;, kcal: 250 }];
+const show = list =&gt; list.map(m =&gt; m.id + &quot;:&quot; + m.kcal).join(&quot; &quot;);
+
+function oldDownload() {                     // v0.6-c까지: 폰에 있으면 건너뛰기
+  const out = local.map(m =&gt; ({ ...m }));
+  const ids = new Set(out.map(m =&gt; m.id));
+  for (const r of remote) {
+    if (ids.has(r.id)) continue;
+    out.push({ ...r, synced: true });
+  }
+  return show(out);
+}
+function newDownload() {                     // v0.6-d: 올라가 있던 것(synced)은 인터넷 값으로
+  const out = local.map(m =&gt; ({ ...m }));
+  for (const r of remote) {
+    const i = out.findIndex(m =&gt; m.id === r.id);
+    if (i &lt; 0) out.push({ ...r, synced: true });
+    else if (out[i].synced) out[i] = { ...r, synced: true };
+  }
+  return show(out);
+}
+console.log(oldDownload());   // ①
+console.log(newDownload());   // ②</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<div class="code"><div class="code-head">nutrition.js (v0.6-d, 줄임)</div><pre><code>const i = localAt.get(r.id);                       // id → 폰의 몇 번째 줄 (없으면 undefined)
+if (i === undefined) data.meals.push(fresh);        // 인터넷에만 있음 → 추가
+else if (data.meals[i].synced &amp;&amp; !justUploaded.has(r.id)) data.meals[i] = fresh;   // 올라가 있던 것 → 인터넷 값</code></pre></div>
+
+<h3>5-3. B3 — 다른 계정으로 로그인하면</h3>
+<p><b>비유</b>: 사물함(계정) 두 개, 공책(폰) 하나. 친구 사물함 열쇠로 열었는데 공책은 내 거야. 예전 앱은 묻지 않고 ① 내 공책에서 <b>아직 안 옮긴 줄을 친구 사물함 칠판에 적고</b> ② 친구 칠판에 없는 줄은 "누가 지웠구나" 하고 <b>내 공책에서 찢었어</b>. 둘 다 에러 없이.</p>
+
+<div class="cell" data-id="5-2">
+  <div class="cell-head"><span>실행 셀 5-2</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const phone = { ownerId: &quot;A&quot;, workouts: [{ id: &quot;w1&quot;, synced: true }, { id: &quot;w2&quot;, synced: false }] };
+const me = &quot;B&quot;;
+const remoteOfB = [];                       // B 계정 인터넷에는 아직 아무것도 없음
+
+// v0.6-c까지: 묻지 않고 [올리기] → [받기]
+const uploaded = phone.workouts.filter(w =&gt; !w.synced).map(w =&gt; w.id);
+const kept = phone.workouts.filter(w =&gt; !(w.synced &amp;&amp; !remoteOfB.includes(w.id))).map(w =&gt; w.id);
+console.log(&quot;B에 올라간 것:&quot;, uploaded);    // ①
+console.log(&quot;폰에 남은 것:&quot;, kept);         // ②
+console.log(phone.ownerId !== me);          // ③ v0.6-d가 먼저 물어보는 조건</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p><b>고친 것</b>: 공책 표지에 주인 이름(<code>data.ownerId</code>)을 적어 둠. 다른 사람이 열면 동기화 전에 확인 창 두 개 — [확인] 안 올린 것만 옮기기 / [취소] → [확인] 폰 비우고 새 계정 기록만 / [취소] → 아무것도 안 하고 로그아웃.</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q5-1</b> 실행 셀 5-1의 ①, ②를 예상해 봐. ②에서 m2가 500으로 남는 이유는? (진짜 앱에서는 받기 전에 "올리기"가 먼저 돌아서, 그때 인터넷의 m2도 500이 돼)<div class="blank"></div></li><li><b class="qn">Q5-2</b> 실행 셀 5-2의 ①~③을 예상해 봐. ②에서 w1은 어디로 갔을까 — 진짜로 사라진 걸까?<div class="blank"></div></li><li><b class="qn">Q5-3</b> B3를 고칠 때 "옮기기"를 고르면 지울 목록(<code>deletedWeights</code>)을 버려. 체중은 날짜로 지우거든 (<code>.eq("day", day)</code>). 안 버리면 무슨 일이 생길까?<div class="blank"></div></li><li><b class="qn">Q5-4</b> B1 수정에서 <code>justUploaded</code> 보호를 빼면, 올리기 바로 다음 받기에서 방금 올린 식사는 어떻게 될까? (힌트: 올리고 나면 <code>synced</code>는 true가 돼)<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s6">
+  <h2><span class="num">6</span>시험(test) 읽기 — v0.6-d에서 생긴 것<span class="time">15분</span></h2>
+  <p class="goal">🎯 PR 화면의 ✅ / ❌가 무엇을 확인한 건지 읽고, ❌가 나면 어디를 볼지 알기</p>
+  
+<p>시험 = <b>"이 값을 넣으면 이게 나와야 해"를 코드로 적어 둔 것</b>. Python의 <code>assert f(1) == 2</code>와 같아. 사람이 매번 폰으로 눌러 보는 대신, GitHub가 올릴 때마다 대신 돌려 줘 (Actions 탭 = CI).</p>
+
+<div class="cell" data-id="6-1">
+  <div class="cell-head"><span>실행 셀 6-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>function assertEqual(actual, expected, name) {      // node:test의 assert.equal을 아주 작게
+  if (actual === expected) console.log(&quot;ok -&quot;, name);
+  else console.log(&quot;not ok -&quot;, name, &quot;| 나온 값:&quot;, actual, &quot;| 기대:&quot;, expected);
+}
+const round1 = x =&gt; Math.round(x * 10) / 10;
+const e1rm = (w, r) =&gt; round1(w * (1 + r / 30));
+
+assertEqual(e1rm(80, 8), 101.3, &quot;80kg × 8회&quot;);   // ①
+assertEqual(e1rm(100, 0), 100, &quot;0회&quot;);            // ②
+assertEqual(0.1 + 0.2, 0.3, &quot;소수 더하기&quot;);        // ③
+assertEqual(80 / 0, Infinity, &quot;0으로 나누기&quot;);     // ④</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<div class="code"><div class="code-head">tests/workout-rules.test.js (진짜)</div><pre><code>test(&quot;nextWeight: 다 채웠지만 RPE 10 → 같은 무게로 굳히기&quot;, () =&gt; {
+  assert.deepEqual(nw(80, [10, 10], 8, 10, 5, 10),
+    { weight: 80, reason: &quot;모든 세트 10회 달성, 하지만 RPE 10 → 같은 무게로 한 번 더&quot; });
+});</code></pre></div>
+<table class=""><thead><tr><th>시험 파일</th><th>무엇을 확인</th><th>고치면 같이 깨지는 곳</th></tr></thead><tbody><tr><td><code>workout-rules.test.js</code></td><td>다음 무게 규칙</td><td>app.js nextWeight · suggestion</td></tr><tr><td><code>memo-import.test.js</code></td><td>메모 읽기가 <b>노트북과 글자까지</b> 같은지 (세트 121개 · 다음 무게 29개)</td><td>import.js · exercises.js · 노트북 ② ③ ⑧</td></tr><tr><td><code>nutrition.test.js</code></td><td>유지 칼로리 · 추천 섭취가 노트북 ④ ⑤와 같은지, 바닥</td><td>nutrition.js</td></tr><tr><td><code>sync.test.js</code></td><td>B1 · B3 · B4가 다시 안 생기는지 (가짜 Supabase)</td><td>sync.js · nutrition.js의 받기</td></tr><tr><td><code>owner-fixes.test.js</code></td><td>네가 고칠 것 2개 (지금은 # TODO)</td><td>docs/owner-fixes.md</td></tr></tbody></table>
+<p><b>가짜 Supabase</b>: 진짜 인터넷 대신 메모리 안의 표를 써. "내 줄만 보이기(RLS)", "한 번에 1000줄까지"를 흉내 내서, 진짜 서버를 안 건드리고 B3(다른 계정) 같은 상황을 몇 번이든 만들 수 있어.</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q6-1</b> 실행 셀 6-1의 ①~④를 예상해 봐. ③이 <b>앱 버그가 아닌데도</b> not ok인 이유는? 시험을 어떻게 고쳐야 할까?<div class="blank"></div></li><li><b class="qn">Q6-2</b> Bench press의 범위를 exercises.js에서 6~8 → 5~7로 바꾸고 노트북은 안 바꿨어. Actions에서 어느 시험 파일이 ❌가 될까?<div class="blank"></div></li><li><b class="qn">Q6-3</b> 고치기 <b>전</b> 코드로 sync.test.js를 돌리면 실패해야 좋은 시험일까, 통과해야 좋은 시험일까?<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s7">
+  <h2><span class="num">7</span>고칠 곳 찾기 — "내 손으로 1줄" 연습<span class="time">15분</span></h2>
+  <p class="goal">🎯 바꾸고 싶은 게 생기면 파일과 이름을 바로 찾고, 같이 바꿔야 하는 곳까지 떠올리기</p>
+  
+<p>v0.5 ~ v0.6에서 늘어난 <b>맨 위 설정 이름</b>들이야. 대부분 한 줄이면 돼 — 단, 몇 개는 <b>함께 바꿔야 하는 짝</b>이 있어.</p>
+<table class=""><thead><tr><th>파일</th><th>새로 생긴 설정들</th></tr></thead><tbody><tr><td><code>nutrition.js</code></td><td>RECENT_FOODS_SHOWN · FOOD_DB_SHOWN · PLAN_AHEAD_DAYS · COMP_SHOWN · MIN_TARGET_KCAL · MIN_TARGET_KCAL_FEMALE · ACTIVITY_LEVELS</td></tr><tr><td><code>effects.js</code></td><td>TOAST_MS · START_SPLASH_MS · FINISH_SPLASH_MS · CONFETTI_COUNT · CONFETTI_COLORS</td></tr><tr><td><code>exercise-media.js</code></td><td>MEDIA_ENABLED · MEDIA_BASE</td></tr><tr><td><code>exercises.js</code></td><td>DAYS · SPLIT_PARTS · LEGACY_NAMES</td></tr><tr><td><code>sync.js</code></td><td>PAGE_ROWS (v0.6-d)</td></tr><tr><td><code>food-search/index.ts</code></td><td>ROWS (서버 쪽 — 배포해야 바뀜)</td></tr></tbody></table>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q7-1</b> "최근 먹은 것"을 12개로 → ?<div class="blank"></div></li><li><b class="qn">Q7-2</b> 식단을 14일 뒤까지 미리 적기 → ?<div class="blank"></div></li><li><b class="qn">Q7-3</b> 추천 섭취 바닥을 1,600으로 → ? (노트북은?)<div class="blank"></div></li><li><b class="qn">Q7-4</b> 아래 알림이 3초 떠 있게 → ?<div class="blank"></div></li><li><b class="qn">Q7-5</b> 공개하기 전에 GIF만 끄기 → ?<div class="blank"></div></li><li><b class="qn">Q7-6</b> 식약처 결과를 40개까지 보여 주기 → <b>두 곳</b>. 왜 한 곳만 고치면 30개에서 멈출까?<div class="blank"></div></li><li><b class="qn">Q7-7</b> <code>PAGE_ROWS</code>를 5000으로 바꾸면 더 빨리 받을까? (힌트: Supabase는 한 번에 최대 몇 줄?)<div class="blank"></div></li><li><b class="qn">Q7-8</b> "복근" 날을 분할로 추가 → 앱 · 노트북 어디?<div class="blank"></div></li><li><b class="qn">Q7-9</b> 위의 어떤 걸 고쳤든, 앱 파일을 고쳤으면 <b>꼭 같이</b> 할 두 가지 + 확인 한 가지는?<div class="blank"></div></li></ol></div>
+</section>
+<section class="sec" id="s8">
+  <h2><span class="num">8</span>조용한 버그 도감 + 말로 설명하기<span class="time">10분</span></h2>
+  <p class="goal">🎯 "에러가 안 났으니 맞다"가 아니라는 감각을 v0.6 버그로 다시</p>
+  
+
+<div class="cell" data-id="8-1">
+  <div class="cell-head"><span>실행 셀 8-1</span><button class="run" type="button">▶ 실행</button></div>
+  <pre><code>const pct = (first, last) =&gt; ((last / first - 1) * 100).toFixed(1) + &quot;%&quot;;
+console.log(pct(100, 110));    // ①
+console.log(pct(0, 80));       // ② 첫 기록이 0kg
+console.log(pct(0, 0));        // ③
+
+const target = (m, kgPerWeek) =&gt; Math.round((m + kgPerWeek * 7700 / 7) / 10) * 10;
+console.log(target(1000, -1));                    // ④ 바닥이 없으면
+console.log(Math.max(1500, target(1000, -1)));    // ⑤ v0.6-d (MIN_TARGET_KCAL)</code></pre>
+  <pre class="out" hidden></pre>
+</div>
+<p>10/10 도감에 이어서, 이번에 찾은 것들:</p>
+<table class="bugs"><thead><tr><th>상황</th><th>에러?</th><th>결과</th><th>막는 법</th></tr></thead><tbody>
+<tr><td><b>B1</b> 다른 기기에서 식사 g · 칼로리를 고침</td><td>없음</td><td>이 폰은 옛 숫자를 영원히 들고 있음</td><td>"있으면 건너뛰기" → 올라가 있던 건 인터넷 기준 (5-2)</td></tr>
+<tr><td><b>B3</b> 다른 계정으로 로그인</td><td>없음</td><td>앞 계정의 안 올린 기록이 새 계정으로, 올라가 있던 기록은 폰에서 지워짐</td><td>주인 표시(ownerId) + 먼저 묻기 (5-3)</td></tr>
+<tr><td><b>B4</b> 운동이 1000개를 넘음</td><td>없음</td><td>뒤쪽이 안 와서 "다른 기기에서 지운 것"으로 착각 → 폰에서 지움</td><td>1000줄씩 나눠 받기 (<code>selectAll</code>)</td></tr>
+<tr><td><b>B7</b> 첫 기록이 0kg</td><td>없음 (JS는 0으로 나눠도 에러 대신 Infinity)</td><td>"+Infinity%"</td><td>나누기 전에 0인지 확인 (<code>changePct</code>)</td></tr>
+<tr><td><b>B8</b> 유지 1000 + 주당 −1kg</td><td>없음</td><td>추천 섭취 −100kcal</td><td>바닥 (<code>Math.max(MIN_TARGET_KCAL, …)</code>)</td></tr>
+<tr><td><b>B5</b> 확인용 코드를 안 지움</td><td>없음</td><td>서버 함수가 키 앞뒤 조각을 보여 줌</td><td>확인 끝나면 지우기 + 다시 배포</td></tr>
+<tr><td><b>B2</b> 백업 복원</td><td>없음</td><td>내 음식만 사라짐</td><td>☆ <b>네가 찾을 차례</b> — <code>docs/owner-fixes.md</code> 1번 (힌트 사다리)</td></tr>
+</tbody></table>
+<p>공통점: 전부 <b>"값은 나왔는데 틀린 값"</b>이야. 그래서 v0.6-d부터는 버그를 고칠 때마다 <b>그 버그를 다시 만드는 시험</b>을 같이 넣어.</p>
+<div class="questions"><div class="q-title">문제 — 먼저 종이에 예상하고, 정답은 맨 아래</div><ol><li><b class="qn">Q8-1</b> 실행 셀 8-1의 ①~⑤를 예상해 봐. ③은 왜 Infinity가 아니라 NaN일까?<div class="blank"></div></li></ol></div>
+<h3>마지막: 말로 설명하기 (종이에 3~5줄씩)</h3>
+<ol class="explain">
+  <li>폰 A에서 점심 g을 230 → 330으로 고쳤어. <b>폰 B에 330이 보이기까지</b>. (힌트 단어: synced: false · syncNow · upsert · justUploaded · selectAll · synced: true면 인터넷 값)</li>
+  <li>A 계정으로 쓰던 폰에서 <b>B 계정으로 로그인</b>하면 무슨 일이 일어나? 확인 창에서 [확인]을 누르면 무엇이 어디로 가고, 무엇이 폰에서 빠져? (힌트: ownerId · 안 올린 것 · 지울 목록)</li>
+  <li>PR을 올렸더니 Actions에 ❌가 떴어. <b>어디를 눌러서 무엇을 보면</b> 어떤 시험이 왜 깨졌는지 알 수 있을까? (힌트: Actions · node 시험 · not ok · 나온 값 / 기대)</li>
+</ol>
+<p>세 개 다 막힘없이 쓰면 오늘 목표 달성. 그다음은 <code>docs/owner-fixes.md</code>의 1~3번을 직접 고쳐 보는 거야 — 고치면 Actions에서 <code>not ok … # TODO</code>가 <code>ok</code>로 바뀌는 걸 볼 수 있어.</p>
+</section>
+<section class="sec answers" id="answers">
+  <h2><span class="num">✓</span>정답</h2>
+  <p class="small">출력은 이 페이지의 ▶ 실행과 같은 모양으로 적었어 (문자열 목록은 <code>['a', 'b']</code>, 사전은 <code>{ w: 80 }</code>). 크롬 콘솔은 조금 다르게 보일 수 있어. 모든 출력은 실제로 돌려서 확인했어.</p>
+  <div class="ans"><b class="qn">Q1-1</b><div><pre>[&#x27;meals&#x27;, &#x27;myFoods&#x27;, &#x27;myFoodsDirty&#x27;, &#x27;ownerId&#x27;, &#x27;workouts&#x27;]
+1 null
+undefined</pre>① 펼친 순서대로: 빈 칸 4개가 먼저, 저장본의 <code>workouts</code>가 뒤. <code>meals</code>는 저장본 것이 이겨서 길이 1. ③ 칸이 있으니(<code>{}</code>) 그 안에 없는 이름을 찾으면 <code>undefined</code> — 에러는 <b>칸 자체가 없을 때</b>(<code>undefined["홀리닭"]</code>) 나. 그래서 빈 칸을 깔아 두는 거야.</div></div><div class="ans"><b class="qn">Q1-2</b><div>(가) exercise-media.js (steps) (나) effects.js <code>CONFETTI_COUNT</code> (다) exercises.js (aliases) (라) supabase/functions/food-search/index.ts</div></div><div class="ans"><b class="qn">Q2-1</b><div><pre>sidelateralraise
+Barbell row Side lateral raise
+null
+7</pre>④ 종목 2개 × (정식 이름 + 한국어 + 별명들) = (1+1+1) + (1+1+2) = <b>7</b>. 키가 겹치지 않으니 다 들어가.</div></div><div class="ans"><b class="qn">Q2-2</b><div>찾아져. <code>compactName("Lat Pull-Down")</code> = <code>"latpulldown"</code>, <code>compactName("Lat pulldown")</code> = <code>"latpulldown"</code> — 같아. 띄어쓰기 · 대소문자 · "-"를 무시하는 이유가 이거야.</div></div><div class="ans"><b class="qn">Q2-3</b><div>exercises.js의 <code>"Lat pulldown"</code> 줄 <code>aliases</code>에 <code>"렛풀"</code> 추가 + 노트북 ②의 <code>ALIASES</code>에도 <code>"렛풀": "Lat pulldown"</code>. 둘을 같이 바꿔야 메모 가져오기와 노트북이 같은 결과를 내 (v0.6-d의 시험 <code>tests/memo-import.test.js</code>가 노트북과 비교해 줘).</div></div><div class="ans"><b class="qn">Q3-1</b><div><pre>30
+35
+null
+[&#x27;어깨&#x27;, &#x27;팔&#x27;]</pre>③ <code>"등+팔"</code>은 <code>"팔"</code>과 <b>다른 분할</b>이야 (글자가 다르니까). 그래서 그 조합으로 한 적이 없으면 null → 처음 하는 종목처럼 기본값 20kg으로 시작해.</div></div><div class="ans"><b class="qn">Q3-2</b><div><pre>true false false
+false
+false true</pre>① 0번만 ss가 있고 다음 종목이 있음. ② 마지막 종목은 ss가 켜져 있어도 <b>다음 종목이 없어서</b> false (<code>i + 1 &lt; exs.length</code>). ③ <code>!!x</code> = Python의 <code>bool(x)</code>.</div></div><div class="ans"><b class="qn">Q3-3</b><div>exercises.js의 <code>exerciseSplit(w, name)</code> — 예: 조합이면 그 종목의 부위가 들어 있는 분할 하나를 돌려주게. 지난번 기록 · 다음 무게 · 그래프 · 메모 가져오기가 모두 이 함수를 써서 한 곳만 고치면 돼. (노트북 ①도 같이, 그리고 시험의 "분할 조합은 따로"도 바꿔야 해)</div></div><div class="ans"><b class="qn">Q4-1</b><div><pre>{ kcal: 601, c: 70.3, p: 39.9, f: 17.8 }
+{ kcal: 91, c: 10.7, p: 6.1, f: 2.7 }
+70.28999999999999</pre>③ 컴퓨터는 소수를 2진수로 담아서 아주 작은 오차가 생겨. 그래서 앱은 늘 <code>round1</code>(× 10 → 반올림 → ÷ 10).</div></div><div class="ans"><b class="qn">Q4-2</b><div>k = 165 ÷ 330 = 0.5 → 601 × 0.5 = 300.5 → <code>Math.round</code> → <b>301kcal</b> (JS의 Math.round는 .5를 위로 올려).</div></div><div class="ans"><b class="qn">Q5-1</b><div><pre>m1:420 m2:500 m3:250
+m1:600 m2:500 m3:250</pre>① 예전: m1이 폰에 있으니 건너뜀 → 420 그대로 (B1). ② m1은 synced라 인터넷 값 600, m2는 synced: false(폰에서 고침)라 폰 값 500 유지, m3는 새로 추가.</div></div><div class="ans"><b class="qn">Q5-2</b><div><pre>B에 올라간 것: [&#x27;w2&#x27;]
+폰에 남은 것: [&#x27;w2&#x27;]
+true</pre>② w1은 폰에서 지워졌지만 <b>A 계정 인터넷</b>에는 남아 있어. 그래도 사용자는 "기록이 사라졌다"로 느끼고, w2(A의 기록)는 B 계정에 올라가 버려 — 그래서 먼저 물어보게 바꿨어.</div></div><div class="ans"><b class="qn">Q5-3</b><div>A의 "10/10 체중 지우기"가 B 계정으로 실행돼서 <b>B의 10/10 체중이 지워져</b>. RLS는 "B의 줄만" 보이게 하니까, 날짜가 같은 B의 줄이 걸려. (그래서 시험 "B3: [확인] 옮기기 → … B의 체중은 안전"이 있어)</div></div><div class="ans"><b class="qn">Q5-4</b><div>대부분은 인터넷 값 = 방금 올린 값이라 겉으로는 같아 보여. 하지만 올리기와 받기 사이에 다른 기기가 고쳤거나, 인터넷 쪽 숫자 모양이 다르면(예: 시각 글자 <code>+00:00</code>) 방금 넣은 내 값이 덮일 수 있어. "방금 올린 건 내가 최신"이라는 걸 확실히 하려고 남겨 둔 보호야. (지우기 쪽에서는 꼭 필요: 인터넷 목록을 받은 <b>뒤에</b> 올린 줄을 "인터넷에 없음 → 지움"으로 착각하지 않게)</div></div><div class="ans"><b class="qn">Q6-1</b><div><pre>ok - 80kg × 8회
+ok - 0회
+not ok - 소수 더하기 | 나온 값: 0.30000000000000004 | 기대: 0.3
+ok - 0으로 나누기</pre>③ 0.1 + 0.2는 2진수 오차로 0.30000000000000004. 계산은 맞는데 <b>시험이 너무 엄격</b>한 거야 → <code>round1(0.1 + 0.2)</code>와 비교하거나 "차이가 아주 작으면 같다"로 비교 (nutrition.test.js의 <code>Math.abs(a - b) &lt; 1e-6</code>). ④ JS는 0으로 나눠도 에러 대신 <code>Infinity</code> — B7의 원인.</div></div><div class="ans"><b class="qn">Q6-2</b><div><code>memo-import.test.js</code>의 "노트북 ⑧ 다음 무게 29개" (노트북 정답 파일은 6~8 기준). 앱과 노트북을 <b>같이</b> 바꾸고 <code>python3 tests/tools/notebook_expectations.py</code>로 정답 파일을 다시 만들면 ✅로 돌아와.</div></div><div class="ans"><b class="qn">Q6-3</b><div><b>실패해야</b> 좋은 시험이야. 버그가 있는 코드에서 통과하는 시험은 그 버그를 못 잡는다는 뜻이거든. 실제로 v0.6-d의 시험을 고치기 전 코드로 돌렸더니 35개 중 11개가 실패했고, 고친 뒤에는 다 통과했어.</div></div><div class="ans"><b class="qn">Q7-1</b><div>nutrition.js <code>RECENT_FOODS_SHOWN = 12</code></div></div><div class="ans"><b class="qn">Q7-2</b><div>nutrition.js <code>PLAN_AHEAD_DAYS = 14</code></div></div><div class="ans"><b class="qn">Q7-3</b><div>nutrition.js <code>MIN_TARGET_KCAL = 1600</code>. 노트북 ⑤에는 바닥이 없어 — 넣을지는 docs/v0.6-decisions.md 3번에서 네가 정할 일</div></div><div class="ans"><b class="qn">Q7-4</b><div>effects.js <code>TOAST_MS = 3000</code> (밀리초 = 1/1000초)</div></div><div class="ans"><b class="qn">Q7-5</b><div>exercise-media.js <code>MEDIA_ENABLED = false</code></div></div><div class="ans"><b class="qn">Q7-6</b><div>nutrition.js <code>FOOD_DB_SHOWN = 40</code> + food-search/index.ts <code>ROWS = 40</code> (그리고 서버 함수 다시 배포). 서버가 30개만 받아 오니까 앱이 40개를 보여 주려 해도 30개뿐이야</div></div><div class="ans"><b class="qn">Q7-7</b><div>아니. 서버가 한 번에 <b>1000줄</b>까지만 줘서, 5000개를 달라고 해도 1000개가 와. 그러면 <code>page.length &lt; PAGE_ROWS</code>(1000 &lt; 5000)가 참이 돼서 "끝났다"고 착각 → <b>B4 버그가 다시 생겨</b>. 서버 설정(max rows)과 짝이라 혼자 바꾸면 안 되는 숫자</div></div><div class="ans"><b class="qn">Q7-8</b><div>exercises.js <code>DAYS</code>에 "복근" + 노트북 ②의 <code>DAYS</code>도 같이 (메모 가져오기가 분할 줄을 알아보게). 부위 이름과 같으니 SPLIT_PARTS는 필요 없어</div></div><div class="ans"><b class="qn">Q7-9</b><div>① app.js <code>APP_VERSION</code> ② sw.js <code>CACHE</code> 올리기 (안 하면 폰이 옛 파일). 확인: PR의 Actions ✅ + 폰 홈 맨 아래 버전 번호</div></div><div class="ans"><b class="qn">Q8-1</b><div><pre>10.0%
+Infinity%
+NaN%
+-100
+1500</pre>② 80 ÷ 0 = Infinity → (Infinity − 1) × 100 = Infinity. ③ 0 ÷ 0은 "정할 수 없음" = <b>NaN</b>(Not a Number). 둘 다 에러가 안 나서 화면에 그대로 찍혀 — v0.6-d의 <code>changePct</code>는 첫 기록이 0이면 %를 아예 안 보여 줘. ④ 바닥이 없으면 음수 추천.</div></div>
+</section>
+</main>
+<script>
+// ▶ 실행: 셀의 코드를 이 페이지 안에서 돌리고 console.log를 아래 칸에 보여 줌 (인터넷 필요 없음)
+function fmt(v, inner) {
+  if (typeof v === "string") return inner ? "'" + v + "'" : v;
+  if (v === null) return "null";
+  if (v === undefined) return "undefined";
+  if (Array.isArray(v)) return "[" + v.map(x => fmt(x, true)).join(", ") + "]";
+  if (typeof v === "object") {
+    const keys = Object.keys(v);
+    return keys.length ? "{ " + keys.map(k => (/^[A-Za-z_$][\w$]*$/.test(k) ? k : "'" + k + "'") + ": " + fmt(v[k], true)).join(", ") + " }" : "{}";
+  }
+  return String(v);
+}
+document.querySelectorAll(".cell").forEach(cell => {
+  const button = cell.querySelector(".run");
+  const out = cell.querySelector(".out");
+  const source = cell.querySelector("pre code").textContent;
+  button.addEventListener("click", () => {
+    out.hidden = false;
+    out.textContent = "";
+    const con = { log: (...args) => { out.textContent += args.map(a => fmt(a)).join(" ") + "\n"; } };
+    try { new Function("console", source)(con); }
+    catch (e) { out.textContent += "에러: " + e.message + "\n"; }
+  });
+});
+</script>
+</body>
+</html>
