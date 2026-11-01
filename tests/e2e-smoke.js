@@ -156,7 +156,7 @@ async function main() {
   const after = await b.page.evaluate(() => ({ owner: data.ownerId, ids: data.workouts.map(w => w.id),
     bWorkouts: __fake.state.tables.workouts.filter(w => w.user_id === "u-b").map(w => w.id),
     bWeights: __fake.state.tables.body_weights.filter(r => r.user_id === "u-b").length }));
-  assert.deepEqual(after, { owner: B.id, ids: ["wa2"], bWorkouts: ["wa2"], bWeights: 1 }, "B3: 안 올린 것만 옮김, B의 체중은 그대로");
+  assert.deepEqual(after, { owner: B.id, ids: ["wa2-u-b"], bWorkouts: ["wa2-u-b"], bWeights: 1 }, "B3: 안 올린 것만 옮김, B의 체중은 그대로");
   await shot(b.page, "account-switched");
   await b.ctx.close();
 

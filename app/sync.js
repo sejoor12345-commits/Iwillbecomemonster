@@ -116,7 +116,7 @@ function unsyncedCount() {                                        // 아직 안 
     + (data.myFoodsDirty ? 1 : 0) + (data.nutrition && data.nutrition.dirty ? 1 : 0);
 }
 
-function keepOnlyUnsynced() {                                     // 옮기기: 안 올린 것만 남김
+function keepOnlyUnsynced(newOwner) {                             // 옮기기: 안 올린 것만 남김
   data.workouts = data.workouts.filter(w => !w.synced);
   for (const d of Object.keys(data.body)) if (data.body[d].synced) delete data.body[d];
   data.meals = data.meals.filter(m => !m.synced);
@@ -129,6 +129,12 @@ function keepOnlyUnsynced() {                                     // 옮기기: 
   // 지울 목록은 앞 계정 것 → 버림 (특히 체중은 날짜로 지워서, 남겨 두면 새 계정의 같은 날 체중이 지워짐)
   Object.assign(data, { deleted: [], deletedMeals: [], deletedWeights: [], deletedCustoms: [] });
   if (data.currentId && !data.workouts.some(w => w.id === data.currentId)) data.currentId = null;
+  // 옮기는 운동 · 식사는 이름표(id)를 새로 붙임: 앞 계정에 한 번 올렸다가 폰에서 고친 기록은 그 id가 앞 계정 인터넷에 있어서
+  //   새 계정으로 올리면 RLS 에러 → 동기화가 매번 실패했음 (id는 계정 구분 없는 전체 이름표). 예: "m5x2k" → "m5x2k-u-b1c2d3"
+  const tag = "-" + newOwner.id.slice(0, 8);
+  if (data.currentId) data.currentId += tag;
+  for (const w of data.workouts) w.id += tag;
+  for (const m of data.meals) m.id += tag;
 }
 
 function clearLocal() {                                           // 비우기: 처음 연 앱처럼
@@ -146,7 +152,7 @@ async function checkOwner() {                                     // true = 동�
   const n = unsyncedCount();
   if (n && confirm(`이 폰의 기록은 ${before} 계정으로 쓰던 거예요. 아직 안 올린 기록이 ${n}개 있어요.\n\n`
       + `[확인] 안 올린 기록 ${n}개를 지금 계정(${me.email})으로 옮기기\n[취소] 옮기지 않기 (다음 질문으로)`)) {
-    keepOnlyUnsynced();
+    keepOnlyUnsynced(me);
   } else if (confirm(`${n ? `안 올린 기록 ${n}개는 사라져요. ` : ""}이 폰에서 ${before} 계정의 기록을 비우고 ${me.email} 기록만 받을까요?\n`
       + `(올라가 있던 기록은 ${before} 계정에 그대로 있어요)\n\n[취소] 아무것도 안 하고 로그아웃 — 먼저 백업을 받고 싶을 때`)) {
     clearLocal();

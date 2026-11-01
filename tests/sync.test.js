@@ -126,13 +126,27 @@ test("B3: [확인] 옮기기 → 안 올린 것만 B로 올라가고, A의 올�
   assert.match(app.dialogs[0].msg, /a@example\.com 계정으로 쓰던 거예요\. 아직 안 올린 기록이 3개/);
   const t = fake.state.tables;
   const ids = (rows, user) => rows.filter(r => r.user_id === user.id).map(r => r.id || r.day).sort();
-  assert.deepEqual(ids(t.workouts, B), ["wa2", "wb1"]);                      // 안 올린 운동만 B로
-  assert.deepEqual(ids(t.meals, B), ["ma2"]);
+  assert.deepEqual(ids(t.workouts, B), ["wa2-u-b", "wb1"]);                  // 안 올린 운동만 B로 (이름표는 새로)
+  assert.deepEqual(ids(t.meals, B), ["ma2-u-b"]);
   assert.deepEqual(ids(t.body_weights, B), ["2026-10-02", "2026-10-10"]);   // B의 10/10 체중이 안 지워짐
   assert.deepEqual(ids(t.workouts, A), ["wa1"]);                             // A 것은 그대로
-  assert.deepEqual(app.get("data.workouts.map(w => w.id).sort()"), ["wa2", "wb1"]);
+  assert.deepEqual(app.get("data.workouts.map(w => w.id).sort()"), ["wa2-u-b", "wb1"]);
   assert.deepEqual(app.get("[data.ownerId, data.deleted, data.deletedWeights]"), [B.id, [], []]);
   assert.match(app.get("account.status"), /동기화 완료/);
+});
+
+test("B3: [확인] 옮기기 — A에 올렸다가 폰에서 고친 식사 · 진행 중인 운동도 새 이름표로 B에 올라감 (RLS 에러로 멈추지 않음)", async () => {
+  const fake = createFakeSupabase({ session: { user: B } });
+  fake.state.tables.meals.push(remoteMeal(A, "ma1", 500));                   // A 인터넷에 있는 식사를
+  const data = baseData({ ownerId: A.id, ownerEmail: A.email, currentId: "wa3",
+    meals: [meal("ma1", 600, { synced: false })],                           //   폰에서 고치고 아직 안 올림
+    workouts: [{ ...workout("wa3", "등", "2026-10-31", [["Pull up", 0, [10]]]), end: null }] });
+  const app = loadApp({ data, fake, confirm: () => true });
+  await app.settle();
+  assert.match(app.get("account.status"), /동기화 완료/);
+  assert.deepEqual(fake.state.tables.meals.map(m => [m.id, m.user_id, m.kcal]), [["ma1", A.id, 500], ["ma1-u-b", B.id, 600]]);
+  assert.deepEqual(app.get("[data.meals.map(m => [m.id, m.synced]), data.currentId, data.workouts[0].id]"),
+    [[["ma1-u-b", true]], "wa3-u-b", "wa3-u-b"]);                             // 진행 중인 운동은 이어서 할 수 있음
 });
 
 test("B3: [취소] → [확인] 비우기 → B 기록만 받고, 아무것도 B로 안 올라감", async () => {
