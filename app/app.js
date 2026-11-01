@@ -463,6 +463,7 @@ function restoreBackup(file) {
       Object.values(data.body).forEach(b => { b.synced = false; });
       data.meals.forEach(m => { m.synced = false; });
       if (data.nutrition) data.nutrition.dirty = true;
+      Object.assign(data, { ownerId: restored.ownerId || null, ownerEmail: restored.ownerEmail || null });   // 백업의 주인 계정도 (v0.6-d) — 다른 계정 백업이면 다음 동기화 때 먼저 물어봄 (sync.js)
       data = canonicalizeData(data);                                // 예전 백업의 옛 이름도 정식 이름으로
       save();
       ui.screen = data.currentId ? "workout" : "home";

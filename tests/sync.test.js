@@ -225,3 +225,15 @@ test("B3: 안 올린 것이 없으면 한 번만 묻고, 같은 계정이면 안
   r = await open(data, { session: { user: A } });
   assert.equal(r.app.dialogs.length, 0);
 });
+
+test("B3: 다른 계정의 백업을 복원하면 그 계정 주인으로 남아서 올리기 전에 물어봄 (예전엔 주인이 비어 그냥 올라감)", async () => {
+  const { app, fake } = await open(baseData({ ownerId: A.id, ownerEmail: A.email }), { session: { user: A } });
+  const backup = baseData({ ownerId: B.id, ownerEmail: B.email, workouts: [workout("wb1", "하체", "2026-10-05", [["Squat", 60, [10]]], { synced: true })] });
+  app.run(`FileReader = class { readAsText(file) { this.result = file.text; this.onload(); } }`);
+  app.run(`restoreBackup({ text: ${JSON.stringify(JSON.stringify(backup))} })`);
+  assert.deepEqual(app.get("[data.ownerId, data.ownerEmail]"), [B.id, B.email]);
+  await app.run("syncNow()");
+  await app.settle();
+  assert.match(app.dialogs.at(-1).msg, /b@example\.com 계정으로 쓰던 거예요/);
+  assert.deepEqual(fake.state.tables.workouts.map(w => [w.id, w.user_id]), [["wb1-u-a", A.id]]);   // [확인] → 새 이름표로 A에
+});
