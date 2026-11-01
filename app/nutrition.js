@@ -25,6 +25,8 @@ const RATIO_PRESETS = [[50, 30, 20], [40, 30, 30]];
 const DEFAULT_KG_PER_WEEK = -0.5;          // 목표 속도 (kg/주): 감량 -0.5 / 유지 0 / 증량 0.25
 const SPEED_CHOICES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
 const INITIAL_MAINTENANCE = 2500;          // 내 정보도 직접 입력도 없을 때 쓰는 유지 칼로리 (kcal)
+const MIN_TARGET_KCAL = 1500;              // 추천 섭취의 바닥 (kcal). 계산이 이보다 낮게 나와도 이 아래로는 추천 안 함 (v0.6-d)
+const MIN_TARGET_KCAL_FEMALE = 1200;       //   내 정보에서 성별을 "여"로 고른 경우의 바닥. 흔히 쓰는 안내값(남 1500 · 여 1200), 의학적 처방 아님
 const COMPLETE_DAY_RATIO = 0.6;            // 그날 칼로리가 (처음 추정) 추천 섭취의 60%보다 적으면 "덜 적은 날" → 계산에서 뺌
 const ACTIVITY_LEVELS = [                  // 활동계수 (기초대사량에 곱함)
   { factor: 1.2,   name: "거의 안 움직임", example: "운동은 거의 안 하고, 대부분 앉아서 생활" },
@@ -177,8 +179,17 @@ function maintenanceInfo(today) {
 }
 
 // 추천 섭취 = 유지 + 목표 kg/주 × 7700 ÷ 7, 10kcal 단위   ← 노트북 ⑤
-function targetKcal(maintenance) {
+//   (v0.6-d) 단, 바닥(MIN_TARGET_KCAL) 아래로는 안 내려감. 예전엔 유지 칼로리를 1000으로 직접 넣고 주당 −1kg을 고르면
+//   1000 − 1100 = −100kcal이 "추천"으로 나왔음. 노트북 ⑤에는 바닥이 없음 (앱에만 있는 안전장치)
+function rawTargetKcal(maintenance) {                          // 바닥을 적용하기 전 계산값
   return Math.round((maintenance + nutritionSettings().kgPerWeek * KCAL_PER_KG / 7) / 10) * 10;
+}
+function minTargetKcal() {
+  const p = nutritionSettings().profile;
+  return p && p.sex === "여" ? MIN_TARGET_KCAL_FEMALE : MIN_TARGET_KCAL;
+}
+function targetKcal(maintenance) {
+  return Math.max(minTargetKcal(), rawTargetKcal(maintenance));
 }
 
 function ratioOf(day) {                                        // 그날 목표 비율 (리피드처럼 그날만 바꾼 게 있으면 그것)
@@ -639,6 +650,7 @@ function calorieCard(day, today) {
       <button class="link small" data-action="n-base">${ui.basePanel ? "유지 칼로리 정하기 ▴" : "유지 칼로리 정하기 ▾"}</button>
       ${ui.basePanel ? basePanel(today) : ""}
       ${Math.abs(ratePct) > 1 ? `<p class="notice small">⚠️ 주당 체중의 1%보다 빠른 속도예요 (${ratePct.toFixed(1)}%)</p>` : ""}
+      ${rawTargetKcal(info.maintenance) < target ? `<p class="notice small">⚠️ 계산한 추천 섭취(${kcalText(rawTargetKcal(info.maintenance))}kcal)가 너무 낮아서 ${kcalText(target)}kcal로 맞췄어요. 목표 속도를 늦추거나 유지 칼로리를 확인해 보세요.</p>` : ""}
     </section>`;
 }
 
@@ -869,15 +881,7 @@ function nutritionPending() {
     + data.deletedMeals.length + data.deletedWeights.length + (data.nutrition && data.nutrition.dirty ? 1 : 0);
 }
 
-async function selectAll(table, columns) {                     // 한 번에 1000줄까지만 오니까 나눠서 다 받기
-  const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const { data: page, error } = await db.from(table).select(columns).range(from, from + 999);
-    if (error) throw error;
-    rows.push(...page);
-    if (page.length < 1000) return rows;
-  }
-}
+// 나눠서 다 받기(selectAll)는 sync.js에 있음 — 운동 받기와 같이 씀 (v0.6-d)
 
 async function syncNutrition() {
   // [1] 폰에서 지운 것 → 인터넷에서도 지우기
@@ -897,35 +901,41 @@ async function syncNutrition() {
   // [2] 아직 안 올린 체중 · 식사 · 설정 올리기 (upsert = 있으면 덮어쓰기 → 여러 번 해도 결과가 같음)
   const justUploaded = new Set();                              // 방금 올린 것은 [3]에서 절대 안 지움 (운동 동기화와 같은 보호)
   const days = Object.keys(data.body).filter(d => !data.body[d].synced);
+  const sentBody = days.map(d => data.body[d]);               // 올리는 동안 그 날 체중을 또 고치면 새 값은 "안 올림"으로 남김 (아래 meals와 같은 이유)
   if (days.length) {
     const { error } = await db.from("body_weights")
       .upsert(days.map(d => ({ day: d, weight: data.body[d].w, skeletal_muscle_kg: data.body[d].smm ?? null,
       body_fat_pct: data.body[d].pbf ?? null, updated_at: new Date().toISOString() })));
     if (error) throw error;
-    days.forEach(d => { data.body[d].synced = true; justUploaded.add(d); });
+    days.forEach((d, i) => { if (data.body[d] === sentBody[i]) { sentBody[i].synced = true; justUploaded.add(d); } });
     save();
   }
   const meals = data.meals.filter(m => !m.synced);
+  const sentMeals = meals.map(m => JSON.stringify(m));        // 올린 순간의 모양 (v0.6-d)
+  //   올리는 동안(인터넷이 느리면 몇 초) 같은 식사를 또 고치면, 예전엔 그 고친 것까지 "올라감"으로 표시돼서
+  //   다음 동기화 때 인터넷의 옛 값이 덮어썼음 → 올린 모양과 지금 모양이 같을 때만 "올라감"으로
   if (meals.length) {
     const { error } = await db.from("meals").upsert(meals.map(m => ({
       id: m.id, day: m.day, slot: m.slot, food: m.food, kcal: m.kcal, carb: m.c, protein: m.p, fat: m.f, grams: m.g ?? null,
     })));
     if (error) throw error;
-    meals.forEach(m => { m.synced = true; justUploaded.add(m.id); });
+    meals.forEach((m, i) => { if (JSON.stringify(m) === sentMeals[i]) { m.synced = true; justUploaded.add(m.id); } });
     save();
   }
   if (data.myFoodsDirty) {                                     // 직접 등록한 음식 (이름마다 한 줄, 덮어쓰기)
+    const sentFoods = JSON.stringify(data.myFoods);
     const rows = Object.entries(data.myFoods).map(([name, f]) => ({ name, basis: f.basis, unit: f.unit, total: f.total,
       kcal: f.kcal, carb: f.c, protein: f.p, fat: f.f, updated_at: new Date().toISOString() }));
     if (rows.length) {
       const { error } = await db.from("my_foods").upsert(rows);
       if (error) throw error;
     }
-    data.myFoodsDirty = false;
+    if (JSON.stringify(data.myFoods) === sentFoods) data.myFoodsDirty = false;   // 올리는 동안 또 바뀌었으면 다음에 다시
     save();
   }
   const s = data.nutrition;
   if (s && s.dirty) {
+    const sentSettings = JSON.stringify(s);
     const { error } = await db.from("nutrition_settings").upsert({
       carb_pct: s.ratio[0], protein_pct: s.ratio[1], fat_pct: s.ratio[2],
       target_kg_per_week: s.kgPerWeek, day_ratios: s.dayRatios, updated_at: new Date().toISOString(),
@@ -934,12 +944,12 @@ async function syncNutrition() {
       manual_maintenance: s.manualMaintenance, day_status: s.dayStatus,
     });
     if (error) throw error;
-    s.dirty = false;
+    if (JSON.stringify(data.nutrition) === sentSettings) s.dirty = false;            // 올리는 동안 또 바뀌었으면 다음에 다시
     save();
   }
 
   // [3] 받기: 인터넷이 기준. 폰에서 올라가 있던(synced) 것 중 인터넷에 없으면 다른 기기에서 지운 것
-  const remoteBody = await selectAll("body_weights", "day, weight, skeletal_muscle_kg, body_fat_pct");
+  const remoteBody = await selectAll("body_weights", "day, weight, skeletal_muscle_kg, body_fat_pct", "day");
   const remoteDays = new Set(remoteBody.map(r => r.day));
   for (const r of remoteBody) {
     const local = data.body[r.day];
@@ -948,18 +958,22 @@ async function syncNutrition() {
   }
   for (const d of Object.keys(data.body)) if (data.body[d].synced && !remoteDays.has(d) && !justUploaded.has(d)) delete data.body[d];
 
-  const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat, grams");
+  const remoteMeals = await selectAll("meals", "id, day, slot, food, kcal, carb, protein, fat, grams", "id");
   const remoteIds = new Set(remoteMeals.map(r => r.id));
-  const localIds = new Set(data.meals.map(m => m.id));
+  const localAt = new Map(data.meals.map((m, i) => [m.id, i]));   // id → 폰의 몇 번째 줄
   for (const r of remoteMeals) {
-    if (localIds.has(r.id)) continue;
-    data.meals.push({ id: r.id, day: r.day, slot: r.slot, food: r.food, kcal: r.kcal,
-      c: Number(r.carb), p: Number(r.protein), f: Number(r.fat), ...(r.grams != null ? { g: Number(r.grams) } : {}), synced: true });
+    const fresh = { id: r.id, day: r.day, slot: r.slot, food: r.food, kcal: r.kcal,
+      c: Number(r.carb), p: Number(r.protein), f: Number(r.fat), ...(r.grams != null ? { g: Number(r.grams) } : {}), synced: true };
+    const i = localAt.get(r.id);
+    if (i === undefined) data.meals.push(fresh);                 // 인터넷에만 있음 → 폰에 추가
+    else if (data.meals[i].synced && !justUploaded.has(r.id)) data.meals[i] = fresh;
+    //   폰에도 있고 이미 올라가 있던 것(synced) → 인터넷 값으로 바꿈 = 다른 기기에서 고친 g · 칼로리 반영 (v0.6-d)
+    //   폰에서 고치고 아직 안 올린 것(synced: false)과 방금 올린 것은 폰 것이 최신이라 그대로
   }
   data.meals = data.meals.filter(m => !m.synced || remoteIds.has(m.id) || justUploaded.has(m.id));
 
   if (!data.myFoodsDirty) {                                    // 받기: 다른 기기에서 등록한 내 음식
-    for (const r of await selectAll("my_foods", "name, basis, unit, total, kcal, carb, protein, fat")) {
+    for (const r of await selectAll("my_foods", "name, basis, unit, total, kcal, carb, protein, fat", "name")) {
       data.myFoods[r.name] = { basis: Number(r.basis), unit: r.unit, total: r.total != null ? Number(r.total) : null,
         kcal: Number(r.kcal), c: Number(r.carb), p: Number(r.protein), f: Number(r.fat) };
     }

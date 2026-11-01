@@ -1,3 +1,5 @@
 # Colab에서 저장한 개인 운동 기록
 gym_log.csv
 .ipynb_checkpoints/
+node_modules/
+shots/

@@ -14,11 +14,12 @@
 //     currentId: 진행 중인 운동의 id (없으면 null),
 //     custom: { "새 종목": { part, range, step } },     ← 앱에서 직접 추가한 종목
 //     deleted: [지운 운동 id …], customDirty: true/false ← 인터넷에 아직 반영 안 된 것 (sync.js가 처리)
+//     ownerId, ownerEmail: 이 폰 기록의 주인 계정 (처음 동기화할 때 정해짐, 다른 계정으로 로그인하면 물어봄 — sync.js)
 //   }
 //   운동마다 synced: true = 인터넷(Supabase)에 올라가 있음
 //   + 체중 · 식사 (body, meals, nutrition …) — 모양은 nutrition.js 맨 위
 
-const APP_VERSION = "v0.6-c.1";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
+const APP_VERSION = "v0.6-d.2";             // 홈 화면 맨 아래에 보임 → 폰이 새 버전인지 확인용 (sw.js의 CACHE와 같이 올리기)
 const STORAGE_KEY = "iwbm-data-v1";
 const RPE_CHOICES = [7, 8, 9, 10];
 const PART_ORDER = ["가슴", "등", "어깨", "하체", "이두", "삼두", "복근"];   // 종목 목록에서 부위가 나오는 순서
@@ -37,7 +38,7 @@ function load() {
 
 // 나중 버전에서 늘어난 칸들의 빈 값 (예전에 저장된 data에는 이 칸이 없음)
 function EMPTY_EXTRAS() {
-  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false, deletedCustoms: [], myFoods: {}, myFoodsDirty: false };
+  return { deleted: [], customDirty: false, body: {}, meals: [], nutrition: null, deletedMeals: [], deletedWeights: [], hiddenGraphs: [], hiddenDirty: false, deletedCustoms: [], myFoods: {}, myFoodsDirty: false, ownerId: null, ownerEmail: null };
 }
 
 // 이름을 바꾸다 보면 한 운동 안에 같은 종목이 둘 생길 수 있음 ("SLL" + "Lateral raise") → 앞 것에 세트를 합침
@@ -462,6 +463,7 @@ function restoreBackup(file) {
       Object.values(data.body).forEach(b => { b.synced = false; });
       data.meals.forEach(m => { m.synced = false; });
       if (data.nutrition) data.nutrition.dirty = true;
+      Object.assign(data, { ownerId: restored.ownerId || null, ownerEmail: restored.ownerEmail || null });   // 백업의 주인 계정도 (v0.6-d) — 다른 계정 백업이면 다음 동기화 때 먼저 물어봄 (sync.js)
       data = canonicalizeData(data);                                // 예전 백업의 옛 이름도 정식 이름으로
       save();
       ui.screen = data.currentId ? "workout" : "home";

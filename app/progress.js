@@ -93,13 +93,20 @@ function progressDetail(key, pts, bw) {
   const first = pts[0], last = pts[pts.length - 1];
   const e1rmLine = bw ? "" : `
       <p class="e1rm"><b>e1RM: ${last.e1rm.toFixed(1)}kg</b>${pts.length > 1
-        ? ` <span class="muted small">(첫 기록 ${first.e1rm.toFixed(1)}kg → ${signed(round1((last.e1rm / first.e1rm - 1) * 100))}%)</span>` : ""}</p>
+        ? ` <span class="muted small">(첫 기록 ${first.e1rm.toFixed(1)}kg${changePct(first.e1rm, last.e1rm)})</span>` : ""}</p>
       <p class="muted small">e1RM = 무게와 횟수로 계산한 "1회만 든다면 들 수 있는 무게" 추정치 (무게 × (1 + 횟수/30)). 무게가 같아도 횟수가 늘면 올라가요.</p>`;
   return `
     <div class="pdetail">
       ${e1rmLine}
       <button class="link small" data-action="graph-hide" data-key="${escapeHtml(key)}">목록에서 숨기기</button>
     </div>`;
+}
+
+// 첫 기록 → 최근 변화 % (" → +12.5%"). 첫 기록이 0kg이면 나눌 수 없어서 %는 안 보여 줌 (v0.6-d)
+//   예: 맨몸으로 적던 종목을 나중에 무게 있는 종목으로 바꾸면 첫 e1RM이 0 → 예전엔 "+Infinity%"가 보였음
+function changePct(first, last) {
+  if (!(first > 0)) return "";
+  return ` → ${signed(round1((last / first - 1) * 100))}%`;
 }
 
 function niceStep(rough) {                       // 눈금 간격을 1 · 2 · 5 · 10 … 같은 깔끔한 수로

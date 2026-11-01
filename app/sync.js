@@ -4,7 +4,8 @@
 //   들어오는 것: 이메일 · 비밀번호, 폰에 저장된 data (app.js)
 //   하는 일:     [올리기] 아직 안 올린 운동을 표 3개(workouts · workout_exercises · sets)로 나눠 올리기,
 //                         지운 운동은 인터넷에서도 지우기, 내가 만든 종목(my_exercises) 올리기
-//                [받기]   인터넷에만 있는 운동(다른 기기에서 한 것)을 표 3개에서 모아 폰으로 가져오기
+//                [받기]   인터넷에만 있는 운동(다른 기기에서 한 것)을 표 3개에서 모아 폰으로 가져오기,
+//                         이미 올라가 있던 운동은 인터넷 쪽 내용으로 맞추기 (다른 기기에서 고친 것, v0.6-d)
 //   나가는 것:   홈 화면의 계정 칸 (로그인 상태 · 올릴 기록 수 · 동기화 결과)
 //
 // 원칙: 기록은 항상 폰에 먼저 저장된다(app.js). 여기는 인터넷이 될 때 "올리기"만 담당.
@@ -13,6 +14,8 @@
 const SUPABASE_URL = "https://nkchwtsjjskiwgakemag.supabase.co";
 const SUPABASE_KEY = "sb_publishable_hotPI28wDcC2qIEQ-YJxXw_xO9D08uQ";   // 공개용 키. 남의 기록은 RLS("내 기록은 나만")가 막아 줌
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const PAGE_ROWS = 1000;              // Supabase가 한 번에 주는 최대 줄 수 (서버 설정 max rows와 같게)
+let syncUserId = null;               // 지금 동기화하는 계정 (중간에 로그아웃되면 받기를 멈추려고, v0.6-d)
 
 const account = {
   user: null,        // 로그인한 사람 (없으면 null)
@@ -20,6 +23,27 @@ const account = {
   busy: false,       // 지금 동기화 중인가
   message: "",       // 로그인 화면의 안내 · 에러
 };
+
+
+// ---------- 0. 도우미: 표 하나를 끝까지 다 받기 ----------
+
+// Supabase는 한 번에 1000줄까지만 줘서, 기록이 1000개를 넘으면 뒤쪽이 안 옴 → 1000줄씩 나눠서 다 받기
+//   order = 줄 세우는 칸 (나눠 받는 동안 순서가 섞여서 빠지거나 겹치지 않게)
+//   운동 받기(아래 2-1)와 체중 · 식사 받기(nutrition.js)가 같이 씀 (v0.6-d)
+//   Python으로 치면: while True: page = 표[from:from+1000]; rows += page; if len(page) < 1000: break
+async function selectAll(table, columns, order) {
+  const rows = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    let query = db.from(table).select(columns);
+    if (order) query = query.order(order);
+    const { data: page, error } = await query.range(from, from + PAGE_ROWS - 1);
+    if (error) throw error;
+    // 받는 동안 로그아웃되면(세션이 사라지면) 그 뒤 요청은 에러 없이 "0줄"로 옴 → 그대로 쓰면 폰 기록이 "다른 기기에서 지운 것"으로 지워짐
+    if (syncUserId && (!account.user || account.user.id !== syncUserId)) throw new Error("로그인이 바뀌어서 동기화를 멈췄어요");
+    rows.push(...page);
+    if (page.length < PAGE_ROWS) return rows;
+  }
+}
 
 
 // ---------- 1. 로그인 상태 ----------
@@ -65,6 +89,7 @@ async function signUp(email, password) {
 }
 
 async function signOut() {
+  if (account.busy) return alert("동기화 중이에요. 끝나면 다시 눌러 주세요.");   // 중간에 끊으면 받기가 빈 결과로 와서 위험 (selectAll)
   if (!confirm("로그아웃할까요? 폰에 있는 기록은 그대로 남아요.")) return;
   await db.auth.signOut();
   account.status = "";
@@ -79,6 +104,72 @@ function authError(error) {                                       // 자주 나�
   if (/at least 6 characters/i.test(m)) return "비밀번호는 6자 이상이어야 해요.";
   if (/fetch/i.test(m)) return "인터넷에 연결되지 않았어요.";
   return m;
+}
+
+
+// ---------- 1-1. 이 폰의 기록은 누구 것? (v0.6-d) ----------
+//   data.ownerId = 이 폰 기록의 주인 계정. 처음 동기화할 때 그 계정으로 정해짐 (그 전 버전 기록도 이때 정해짐)
+//   다른 계정으로 로그인하면: 앞 계정의 기록을 새 계정에 올리거나 폰에서 지우기 전에 꼭 물어봄
+//     [확인] 아직 안 올린 기록만 새 계정으로 옮기기 (올라가 있던 기록은 앞 계정 인터넷에 그대로 있으니 폰에서만 비움)
+//     [취소] → 한 번 더: 폰을 비우고 새 계정 기록만 받기 / 아무것도 안 하고 로그아웃 (먼저 백업 받기)
+//   물어보지 않으면 생기던 일: 앞 계정의 안 올린 기록이 새 계정으로 올라가고, 올라가 있던 기록은 "다른 기기에서 지운 것"으로 보여 폰에서 지워짐
+
+function unsyncedCount() {                                        // 아직 안 올린 기록 수 (진행 중인 운동 포함)
+  return data.workouts.filter(w => !w.synced).length
+    + Object.values(data.body).filter(b => !b.synced).length + data.meals.filter(m => !m.synced).length
+    + (data.myFoodsDirty ? 1 : 0) + (data.nutrition && data.nutrition.dirty ? 1 : 0);
+}
+
+function keepOnlyUnsynced(newOwner) {                             // 옮기기: 안 올린 것만 남김
+  data.workouts = data.workouts.filter(w => !w.synced);
+  for (const d of Object.keys(data.body)) if (data.body[d].synced) delete data.body[d];
+  data.meals = data.meals.filter(m => !m.synced);
+  const used = new Set(data.workouts.flatMap(w => w.exercises.map(e => e.name)));   // 남은 운동이 쓰는 내 종목만
+  data.custom = Object.fromEntries(Object.entries(data.custom).filter(([name]) => used.has(name)));
+  data.customDirty = Object.keys(data.custom).length > 0;
+  if (!data.myFoodsDirty) data.myFoods = {};
+  if (data.nutrition && !data.nutrition.dirty) data.nutrition = null;
+  if (!data.hiddenDirty) data.hiddenGraphs = [];
+  // 지울 목록은 앞 계정 것 → 버림 (특히 체중은 날짜로 지워서, 남겨 두면 새 계정의 같은 날 체중이 지워짐)
+  Object.assign(data, { deleted: [], deletedMeals: [], deletedWeights: [], deletedCustoms: [] });
+  if (data.currentId && !data.workouts.some(w => w.id === data.currentId)) data.currentId = null;
+  // 옮기는 운동 · 식사는 이름표(id)를 새로 붙임: 앞 계정에 한 번 올렸다가 폰에서 고친 기록은 그 id가 앞 계정 인터넷에 있어서
+  //   새 계정으로 올리면 RLS 에러 → 동기화가 매번 실패했음 (id는 계정 구분 없는 전체 이름표). 예: "m5x2k" → "m5x2k-u-b1c2d3"
+  const tag = "-" + newOwner.id.slice(0, 8);
+  if (data.currentId) data.currentId += tag;
+  for (const w of data.workouts) w.id += tag;
+  for (const m of data.meals) m.id += tag;
+}
+
+function clearLocal() {                                           // 비우기: 처음 연 앱처럼
+  data = { workouts: [], currentId: null, custom: {}, ...EMPTY_EXTRAS() };
+  if (ui.screen === "workout" || ui.screen === "summary") ui.screen = "home";
+}
+
+async function checkOwner() {                                     // true = 동기화 계속, false = 멈춤
+  const me = account.user;
+  if (!data.ownerId || data.ownerId === me.id) {                  // 처음이거나 같은 계정 → 그대로
+    if (data.ownerId !== me.id || data.ownerEmail !== me.email) { data.ownerId = me.id; data.ownerEmail = me.email; save(); }
+    return true;
+  }
+  const before = data.ownerEmail || "다른 계정";
+  const n = unsyncedCount();
+  if (n && confirm(`이 폰의 기록은 ${before} 계정으로 쓰던 거예요. 아직 안 올린 기록이 ${n}개 있어요.\n\n`
+      + `[확인] 안 올린 기록 ${n}개를 지금 계정(${me.email})으로 옮기기\n[취소] 옮기지 않기 (다음 질문으로)`)) {
+    keepOnlyUnsynced(me);
+  } else if (confirm(`${n ? `안 올린 기록 ${n}개는 사라져요. ` : ""}이 폰에서 ${before} 계정의 기록을 비우고 ${me.email} 기록만 받을까요?\n`
+      + `(올라가 있던 기록은 ${before} 계정에 그대로 있어요)\n\n[취소] 아무것도 안 하고 로그아웃 — 먼저 백업을 받고 싶을 때`)) {
+    clearLocal();
+  } else {
+    await db.auth.signOut();
+    account.user = null;
+    account.status = "";
+    return false;
+  }
+  Object.assign(data, { ownerId: me.id, ownerEmail: me.email });
+  save();
+  if (typeof toast === "function") toast(`${me.email} 계정으로 바꿨어요`);
+  return true;
 }
 
 
@@ -143,39 +234,61 @@ function toLocalWorkout(row) {
 }
 
 async function downloadAll(justUploaded) {
-  // 표 3개를 이름표(id)로 이어서 한 번에 가져오기. RLS 덕분에 내 기록만 온다.
-  const { data: rows, error } = await db.from("workouts")
-    .select("id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, superset, sets(set_no, weight, reps, done_at))");
-  if (error) throw error;
+  // 표 3개를 이름표(id)로 이어서 가져오기. RLS 덕분에 내 기록만 온다. 1000개가 넘어도 다 받게 나눠서 (selectAll)
+  const rows = await selectAll("workouts",
+    "id, split, started_at, ended_at, workout_exercises(name, position, rpe, note, superset, sets(set_no, weight, reps, done_at))", "id");
 
   const remoteIds = new Set(rows.map(r => r.id));
-  const localIds = new Set(data.workouts.map(w => w.id));
-  let added = 0, removed = 0;
+  const localAt = new Map(data.workouts.map((w, i) => [w.id, i]));   // id → 폰의 몇 번째 운동
+  let added = 0, removed = 0, updated = 0;
 
-  for (const row of rows) {                                       // [1] 인터넷에만 있는 운동 → 폰에 추가
-    if (localIds.has(row.id) || data.deleted.includes(row.id)) continue;
-    data.workouts.push(toLocalWorkout(row));
-    added++;
+  for (const row of rows) {
+    if (data.deleted.includes(row.id)) continue;
+    const i = localAt.get(row.id);
+    if (i === undefined) {                                        // [1] 인터넷에만 있는 운동 → 폰에 추가
+      data.workouts.push(toLocalWorkout(row));
+      added++;
+      continue;
+    }
+    const local = data.workouts[i];                               // [1-2] 폰에도 있음 (v0.6-d)
+    if (!local.synced || !local.end || justUploaded.has(row.id)) continue;   // 폰에서 고치고 안 올린 것 · 진행 중 · 방금 올린 것 → 폰 것이 최신
+    const remote = toLocalWorkout(row);                           // 이미 올라가 있던 것 → 인터넷 쪽이 기준 (다른 기기에서 고친 것)
+    if (sameWorkout(local, remote)) continue;                     //   같으면 그대로 (괜히 바꾸지 않기)
+    data.workouts[i] = { ...remote, ...(local.imported ? { imported: true, estimated: local.estimated } : {}) };   // 메모에서 가져온 표시는 폰에만 있어서 남김
+    updated++;
   }
   const before = data.workouts.length;                            // [2] 폰에서 '올라가 있던' 운동인데 인터넷에 없음
   data.workouts = data.workouts.filter(w =>                       //     → 다른 기기에서 지운 것 → 폰에서도 지우기
     !(w.synced && w.end && !remoteIds.has(w.id) && !justUploaded.has(w.id)));          //     (방금 올린 운동은 절대 안 지움)
   removed = before - data.workouts.length;
 
-  const { data: mine, error: e2 } = await db.from("my_exercises")  // [3] 내가 만든 종목: 폰에 없는 것만 가져오기
-    .select("name, part, range_low, range_high, step");
-  if (e2) throw e2;
+  const mine = await selectAll("my_exercises", "name, part, range_low, range_high, step", "name");   // [3] 내가 만든 종목: 폰에 없는 것만 가져오기
   for (const c of mine) {
     if (dictionaryName(c.name)) continue;                         //     사전에 있는 종목(옛 이름 포함)은 건너뜀
     if (!data.custom[c.name]) data.custom[c.name] = { part: c.part, range: [c.range_low, c.range_high], step: Number(c.step) };
   }
   save();
-  return { added, removed };
+  return { added, removed, updated };
+}
+
+// 폰의 운동과 인터넷에서 받은 운동이 내용까지 같은가 (시각은 글자 모양이 달라서 Date로 바꿔 비교: "…00.000Z" vs "…00+00:00")
+const sameTime = (a, b) => (a ? Date.parse(a) : null) === (b ? Date.parse(b) : null);
+function sameWorkout(a, b) {
+  if (a.split !== b.split || !sameTime(a.start, b.start) || !sameTime(a.end, b.end) || a.exercises.length !== b.exercises.length) return false;
+  return a.exercises.every((e, k) => {
+    const f = b.exercises[k];
+    return e.name === f.name && (e.rpe ?? null) === (f.rpe ?? null) && (e.note || "") === (f.note || "") && !!e.ss === !!f.ss
+      && e.sets.length === f.sets.length
+      && e.sets.every((s, j) => Number(s.w) === Number(f.sets[j].w) && s.r === f.sets[j].r && sameTime(s.t, f.sets[j].t));
+  });
 }
 
 async function syncNow() {
   if (!account.user || account.busy || !navigator.onLine) return;
   account.busy = true;
+  const go = await checkOwner().catch(() => false);               // 다른 계정의 기록이면 먼저 물어봄 (1-1)
+  if (!go) { account.busy = false; return render(); }
+  syncUserId = account.user.id;
   account.status = "동기화 중…";
   refreshIfSafe();
   try {
@@ -211,14 +324,16 @@ async function syncNow() {
     }
     if (typeof syncNutrition === "function") await syncNutrition();   // 체중 · 식사 · 식단 설정 (nutrition.js)
     if (typeof syncAppSettings === "function") await syncAppSettings(); // 숨긴 그래프 목록 (progress.js)
-    const { added, removed } = await downloadAll(justUploaded);   // 올린 다음에 받기
+    const { added, removed, updated } = await downloadAll(justUploaded);   // 올린 다음에 받기
     const now = new Date();
-    const changes = [added && `받아온 기록 ${added}개`, removed && `다른 기기에서 지운 기록 ${removed}개 정리`].filter(Boolean).join(", ");
+    const changes = [added && `받아온 기록 ${added}개`, updated && `다른 기기에서 고친 기록 ${updated}개 반영`,
+      removed && `다른 기기에서 지운 기록 ${removed}개 정리`].filter(Boolean).join(", ");
     account.status = `동기화 완료 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}${changes ? " · " + changes : ""}`;
   } catch (error) {
     account.status = `동기화 실패 — 다음에 다시 시도해요 (${authError(error)})`;
   }
   account.busy = false;
+  syncUserId = null;
   refreshIfSafe();
 }
 

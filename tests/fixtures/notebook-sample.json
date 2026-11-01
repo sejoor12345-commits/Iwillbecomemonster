@@ -1,0 +1,1396 @@
+{
+ "_note": "tests/tools/notebook_expectations.py가 노트북 셀을 실행해서 만든 파일. 손으로 고치지 말 것",
+ "memo": "\n가슴\n◦ Free IBP: 80*9,9\n◦ Pull up: 13,12,11,11\n◦ Leg raise: 35,25,25,25\n◦ Dips: 12*3\n◦ BB curl: 40*9*3\n◦ Hammer curl: 24*12\n◦ DB press: 44*16,16,16,14\n✓ Incline Bench press: 80*12,11,9 75*10\n✓ Chest fly: 60*15,15,13\n✓ SLL/BLL: 12*15/15*3\n✓ Pull up/Dips: 10/10\n\n등\n◦ Straight arm pull down: 55*13,13,13\n◦ Deadlift: 130*8,8,8\n◦ Wide pull up: 11,10,9\n◦ SLL: 16*22*4\n◦ Long pull: 90*16,17 95*12*2\n◦ Cable push down/Overhead extension: 35*10/12*2 10/10\n◦ HLR: 36,30,25\n✓ Pull up: 12,11\n✓ BLL/SLL: 10*15/20, 16/21\n\n어깨\n◦ Smith behind neck press: 65*9,9,9,8\n◦ DB shoulder press: 44*16,15,15,13\n◦ Peck deck fly: 20*19,19,17,17\n◦ Smith SLL: 7*17*3\n◦ Bench lateral raise: 14*22 12*22*3\n◦ Dumbbell curl: 24*10\n✓ Pull up: 8,8,8,8\n✓ Dips: 10,10,10,9\n\n하체\n◦ Squat: 115*10,10,8 110*9\n◦ Kettle bell wide squat: 24*20*3\n◦ DB row: 36*16,14,14\n◦ EZ bar curl: 바 제외25*15 31*10,10\n◦ Hammer curl: 24*12*3\n✓ Wide Squat: 110*10,10,10,8\n✓ Incline D.B curl: 24*12*3\n\n어깨\n◦ Smith behind neck press: 65*10,10,9,8\n◦ DB shoulder press: 44*16,14,14,14\n◦ Peck deck fly: 25*16,15,12 20*15\n◦ Smith SLL: 7*17*3\n✓ Bench lateral raise: 14*22 12*22*3\n✓ Dumbbell curl: 24*10\n\n가슴 10/05\n◦ Smith IBP: 85*9,9,7 80*7 @10\n◦ DB press: 44*16,16,16,15 @10\n◦ Dips: 13,12,10,8\n◦ Pull up: 13,12,9\n◦ Hanging leg raise: 35,30,30,25\n◦ Dumbbell curl: 36*8,8,6\n◦ Hammer curl: 24*13\n",
+ "rows": [
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Incline bench press",
+   "set": 1,
+   "w": 80.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Incline bench press",
+   "set": 2,
+   "w": 80.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 1,
+   "w": 0.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 2,
+   "w": 0.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 3,
+   "w": 0.0,
+   "r": 11,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 4,
+   "w": 0.0,
+   "r": 11,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Leg raise",
+   "set": 1,
+   "w": 0.0,
+   "r": 35,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Leg raise",
+   "set": 2,
+   "w": 0.0,
+   "r": 25,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Leg raise",
+   "set": 3,
+   "w": 0.0,
+   "r": 25,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Leg raise",
+   "set": 4,
+   "w": 0.0,
+   "r": 25,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 1,
+   "w": 0.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 2,
+   "w": 0.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 3,
+   "w": 0.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Barbell curl",
+   "set": 1,
+   "w": 40.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Barbell curl",
+   "set": 2,
+   "w": 40.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Barbell curl",
+   "set": 3,
+   "w": 40.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Hammer curl",
+   "set": 1,
+   "w": 24.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 1,
+   "w": 44.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 2,
+   "w": 44.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 3,
+   "w": 44.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 1,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 4,
+   "w": 44.0,
+   "r": 14,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Straight arm pulldown",
+   "set": 1,
+   "w": 55.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Straight arm pulldown",
+   "set": 2,
+   "w": 55.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Straight arm pulldown",
+   "set": 3,
+   "w": 55.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Conventional deadlift",
+   "set": 1,
+   "w": 130.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Conventional deadlift",
+   "set": 2,
+   "w": 130.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Conventional deadlift",
+   "set": 3,
+   "w": 130.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Wide pull up",
+   "set": 1,
+   "w": 0.0,
+   "r": 11,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Wide pull up",
+   "set": 2,
+   "w": 0.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Wide pull up",
+   "set": 3,
+   "w": 0.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Side lateral raise",
+   "set": 1,
+   "w": 16.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Side lateral raise",
+   "set": 2,
+   "w": 16.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Side lateral raise",
+   "set": 3,
+   "w": 16.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Side lateral raise",
+   "set": 4,
+   "w": 16.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Seated cable row",
+   "set": 1,
+   "w": 90.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Seated cable row",
+   "set": 2,
+   "w": 90.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Seated cable row",
+   "set": 3,
+   "w": 95.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Seated cable row",
+   "set": 4,
+   "w": 95.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Cable push down",
+   "set": 1,
+   "w": 35.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Cable push down",
+   "set": 2,
+   "w": 35.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Cable push down",
+   "set": 3,
+   "w": 35.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Overhead triceps extension",
+   "set": 1,
+   "w": 35.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Overhead triceps extension",
+   "set": 2,
+   "w": 35.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Overhead triceps extension",
+   "set": 3,
+   "w": 35.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Hanging leg raise",
+   "set": 1,
+   "w": 0.0,
+   "r": 36,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Hanging leg raise",
+   "set": 2,
+   "w": 0.0,
+   "r": 30,
+   "rpe": null
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "name": "Hanging leg raise",
+   "set": 3,
+   "w": 0.0,
+   "r": 25,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 1,
+   "w": 65.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 2,
+   "w": 65.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 3,
+   "w": 65.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 4,
+   "w": 65.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 1,
+   "w": 44.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 2,
+   "w": 44.0,
+   "r": 15,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 3,
+   "w": 44.0,
+   "r": 15,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 4,
+   "w": 44.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 1,
+   "w": 20.0,
+   "r": 19,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 2,
+   "w": 20.0,
+   "r": 19,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 3,
+   "w": 20.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 4,
+   "w": 20.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "set": 1,
+   "w": 7.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "set": 2,
+   "w": 7.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "set": 3,
+   "w": 7.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Chest-supported rear delt raise",
+   "set": 1,
+   "w": 14.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Chest-supported rear delt raise",
+   "set": 2,
+   "w": 12.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Chest-supported rear delt raise",
+   "set": 3,
+   "w": 12.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Chest-supported rear delt raise",
+   "set": 4,
+   "w": 12.0,
+   "r": 22,
+   "rpe": null
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "name": "Dumbbell curl",
+   "set": 1,
+   "w": 24.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Squat",
+   "set": 1,
+   "w": 115.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Squat",
+   "set": 2,
+   "w": 115.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Squat",
+   "set": 3,
+   "w": 115.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Squat",
+   "set": 4,
+   "w": 110.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Kettlebell wide squat",
+   "set": 1,
+   "w": 24.0,
+   "r": 20,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Kettlebell wide squat",
+   "set": 2,
+   "w": 24.0,
+   "r": 20,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Kettlebell wide squat",
+   "set": 3,
+   "w": 24.0,
+   "r": 20,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Dumbbell row",
+   "set": 1,
+   "w": 36.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Dumbbell row",
+   "set": 2,
+   "w": 36.0,
+   "r": 14,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Dumbbell row",
+   "set": 3,
+   "w": 36.0,
+   "r": 14,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "EZ bar curl",
+   "set": 1,
+   "w": 25.0,
+   "r": 15,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "EZ bar curl",
+   "set": 2,
+   "w": 31.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "EZ bar curl",
+   "set": 3,
+   "w": 31.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Hammer curl",
+   "set": 1,
+   "w": 24.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Hammer curl",
+   "set": 2,
+   "w": 24.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "name": "Hammer curl",
+   "set": 3,
+   "w": 24.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 1,
+   "w": 65.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 2,
+   "w": 65.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 3,
+   "w": 65.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "set": 4,
+   "w": 65.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 1,
+   "w": 44.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 2,
+   "w": 44.0,
+   "r": 14,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 3,
+   "w": 44.0,
+   "r": 14,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "set": 4,
+   "w": 44.0,
+   "r": 14,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 1,
+   "w": 25.0,
+   "r": 16,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 2,
+   "w": 25.0,
+   "r": 15,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 3,
+   "w": 25.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "set": 4,
+   "w": 20.0,
+   "r": 15,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "set": 1,
+   "w": 7.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "set": 2,
+   "w": 7.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "set": 3,
+   "w": 7.0,
+   "r": 17,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Smith incline bench press",
+   "set": 1,
+   "w": 85.0,
+   "r": 9,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Smith incline bench press",
+   "set": 2,
+   "w": 85.0,
+   "r": 9,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Smith incline bench press",
+   "set": 3,
+   "w": 85.0,
+   "r": 7,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Smith incline bench press",
+   "set": 4,
+   "w": 80.0,
+   "r": 7,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 1,
+   "w": 44.0,
+   "r": 16,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 2,
+   "w": 44.0,
+   "r": 16,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 3,
+   "w": 44.0,
+   "r": 16,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "set": 4,
+   "w": 44.0,
+   "r": 15,
+   "rpe": 10
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 1,
+   "w": 0.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 2,
+   "w": 0.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 3,
+   "w": 0.0,
+   "r": 10,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dips",
+   "set": 4,
+   "w": 0.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 1,
+   "w": 0.0,
+   "r": 13,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 2,
+   "w": 0.0,
+   "r": 12,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Pull up",
+   "set": 3,
+   "w": 0.0,
+   "r": 9,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Hanging leg raise",
+   "set": 1,
+   "w": 0.0,
+   "r": 35,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Hanging leg raise",
+   "set": 2,
+   "w": 0.0,
+   "r": 30,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Hanging leg raise",
+   "set": 3,
+   "w": 0.0,
+   "r": 30,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Hanging leg raise",
+   "set": 4,
+   "w": 0.0,
+   "r": 25,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell curl",
+   "set": 1,
+   "w": 36.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell curl",
+   "set": 2,
+   "w": 36.0,
+   "r": 8,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Dumbbell curl",
+   "set": 3,
+   "w": 36.0,
+   "r": 6,
+   "rpe": null
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "name": "Hammer curl",
+   "set": 1,
+   "w": 24.0,
+   "r": 13,
+   "rpe": null
+  }
+ ],
+ "skipped": [],
+ "summary": [
+  {
+   "session": 1,
+   "split": "가슴",
+   "exercises": 7,
+   "sets": 21,
+   "volume": 5536.0
+  },
+  {
+   "session": 2,
+   "split": "등",
+   "exercises": 8,
+   "sets": 26,
+   "volume": 14163.0
+  },
+  {
+   "session": 3,
+   "split": "어깨",
+   "exercises": 6,
+   "sets": 20,
+   "volume": 8008.0
+  },
+  {
+   "session": 4,
+   "split": "하체",
+   "exercises": 5,
+   "sets": 16,
+   "volume": 9093.0
+  },
+  {
+   "session": 5,
+   "split": "어깨",
+   "exercises": 4,
+   "sets": 15,
+   "volume": 6689.0
+  },
+  {
+   "session": 6,
+   "split": "가슴",
+   "exercises": 7,
+   "sets": 23,
+   "volume": 6561.0
+  }
+ ],
+ "plans": [
+  {
+   "split": "가슴",
+   "name": "Barbell curl",
+   "next": 40.0,
+   "reason": "같은 무게로 모든 세트 10회까지"
+  },
+  {
+   "split": "가슴",
+   "name": "Dips",
+   "next": 0.0,
+   "reason": "맨몸 → 같은 세트 수로 세트마다 1회씩 더"
+  },
+  {
+   "split": "가슴",
+   "name": "Dumbbell bench press",
+   "next": 44.0,
+   "reason": "모든 세트 15회 달성, 하지만 RPE 10 → 같은 무게로 한 번 더"
+  },
+  {
+   "split": "가슴",
+   "name": "Dumbbell curl",
+   "next": 34.0,
+   "reason": "최고 8회 < 10회 → -2kg"
+  },
+  {
+   "split": "가슴",
+   "name": "Hammer curl",
+   "next": 26.0,
+   "reason": "모든 세트 12회 달성 → +2kg"
+  },
+  {
+   "split": "가슴",
+   "name": "Hanging leg raise",
+   "next": 0.0,
+   "reason": "맨몸 → 같은 세트 수로 세트마다 1회씩 더"
+  },
+  {
+   "split": "가슴",
+   "name": "Incline bench press",
+   "next": 80.0,
+   "reason": "같은 무게로 모든 세트 10회까지"
+  },
+  {
+   "split": "가슴",
+   "name": "Leg raise",
+   "next": 0.0,
+   "reason": "맨몸 → 같은 세트 수로 세트마다 1회씩 더"
+  },
+  {
+   "split": "가슴",
+   "name": "Pull up",
+   "next": 0.0,
+   "reason": "맨몸 → 같은 세트 수로 세트마다 1회씩 더"
+  },
+  {
+   "split": "가슴",
+   "name": "Smith incline bench press",
+   "next": 85.0,
+   "reason": "중간에 무게를 낮춤 → 85kg로 4세트 도전 (안 되면 80kg)"
+  },
+  {
+   "split": "등",
+   "name": "Cable push down",
+   "next": 35.0,
+   "reason": "같은 무게로 모든 세트 12회까지"
+  },
+  {
+   "split": "등",
+   "name": "Conventional deadlift",
+   "next": 135.0,
+   "reason": "모든 세트 8회 달성 → +5kg"
+  },
+  {
+   "split": "등",
+   "name": "Hanging leg raise",
+   "next": 0.0,
+   "reason": "맨몸 → 같은 세트 수로 세트마다 1회씩 더"
+  },
+  {
+   "split": "등",
+   "name": "Overhead triceps extension",
+   "next": 35.0,
+   "reason": "같은 무게로 모든 세트 12회까지"
+  },
+  {
+   "split": "등",
+   "name": "Seated cable row",
+   "next": 95.0,
+   "reason": "같은 무게로 모든 세트 15회까지"
+  },
+  {
+   "split": "등",
+   "name": "Side lateral raise",
+   "next": 18.0,
+   "reason": "모든 세트 20회 달성 → +2kg"
+  },
+  {
+   "split": "등",
+   "name": "Straight arm pulldown",
+   "next": 55.0,
+   "reason": "같은 무게로 모든 세트 15회까지"
+  },
+  {
+   "split": "등",
+   "name": "Wide pull up",
+   "next": 0.0,
+   "reason": "맨몸 → 같은 세트 수로 세트마다 1회씩 더"
+  },
+  {
+   "split": "어깨",
+   "name": "Cable side lateral raise",
+   "next": 7.0,
+   "reason": "같은 무게로 모든 세트 20회까지"
+  },
+  {
+   "split": "어깨",
+   "name": "Chest-supported rear delt raise",
+   "next": 14.0,
+   "reason": "중간에 무게를 낮춤 → 14kg로 2세트 도전 (안 되면 12kg)"
+  },
+  {
+   "split": "어깨",
+   "name": "Dumbbell curl",
+   "next": 24.0,
+   "reason": "같은 무게로 모든 세트 12회까지"
+  },
+  {
+   "split": "어깨",
+   "name": "Dumbbell shoulder press",
+   "next": 44.0,
+   "reason": "같은 무게로 모든 세트 15회까지"
+  },
+  {
+   "split": "어깨",
+   "name": "Reverse pec deck fly",
+   "next": 25.0,
+   "reason": "중간에 무게를 낮춤 → 25kg로 4세트 도전 (안 되면 20kg)"
+  },
+  {
+   "split": "어깨",
+   "name": "Smith behind neck press",
+   "next": 65.0,
+   "reason": "같은 무게로 모든 세트 10회까지"
+  },
+  {
+   "split": "하체",
+   "name": "Dumbbell row",
+   "next": 36.0,
+   "reason": "같은 무게로 모든 세트 15회까지"
+  },
+  {
+   "split": "하체",
+   "name": "EZ bar curl",
+   "next": 31.0,
+   "reason": "같은 무게로 모든 세트 12회까지"
+  },
+  {
+   "split": "하체",
+   "name": "Hammer curl",
+   "next": 26.0,
+   "reason": "모든 세트 12회 달성 → +2kg"
+  },
+  {
+   "split": "하체",
+   "name": "Kettlebell wide squat",
+   "next": 28.0,
+   "reason": "모든 세트 20회 달성 → +4kg"
+  },
+  {
+   "split": "하체",
+   "name": "Squat",
+   "next": 115.0,
+   "reason": "중간에 무게를 낮춤 → 115kg로 4세트 도전 (안 되면 110kg)"
+  }
+ ],
+ "weight": {
+  "memo": "체중\n10/01 84.0 2190\n10/02 83.9 2230\n10/03 84.2 2270\n10/04 83.8 2150\n10/05 83.7 2190\n10/06 84.0 2230\n10/07 83.6 2270\n10/08 83.5 2150\n10/09 83.7 2190\n10/10 83.4 2230\n10/11 83.3 2270\n10/12 83.5 2150\n10/13 83.2 2190\n10/14 83.1",
+  "days": [
+   {
+    "day": "2026-10-01",
+    "w": 84.0,
+    "kcal": 2190
+   },
+   {
+    "day": "2026-10-02",
+    "w": 83.9,
+    "kcal": 2230
+   },
+   {
+    "day": "2026-10-03",
+    "w": 84.2,
+    "kcal": 2270
+   },
+   {
+    "day": "2026-10-04",
+    "w": 83.8,
+    "kcal": 2150
+   },
+   {
+    "day": "2026-10-05",
+    "w": 83.7,
+    "kcal": 2190
+   },
+   {
+    "day": "2026-10-06",
+    "w": 84.0,
+    "kcal": 2230
+   },
+   {
+    "day": "2026-10-07",
+    "w": 83.6,
+    "kcal": 2270
+   },
+   {
+    "day": "2026-10-08",
+    "w": 83.5,
+    "kcal": 2150
+   },
+   {
+    "day": "2026-10-09",
+    "w": 83.7,
+    "kcal": 2190
+   },
+   {
+    "day": "2026-10-10",
+    "w": 83.4,
+    "kcal": 2230
+   },
+   {
+    "day": "2026-10-11",
+    "w": 83.3,
+    "kcal": 2270
+   },
+   {
+    "day": "2026-10-12",
+    "w": 83.5,
+    "kcal": 2150
+   },
+   {
+    "day": "2026-10-13",
+    "w": 83.2,
+    "kcal": 2190
+   },
+   {
+    "day": "2026-10-14",
+    "w": 83.1,
+    "kcal": null
+   }
+  ],
+  "maintenance": 2744.9230769230962,
+  "slope": -0.06967032967033217,
+  "target_kcal": 2190,
+  "kg_per_week": -0.5,
+  "initial_maintenance": 2750
+ }
+}
