@@ -67,6 +67,24 @@ test("B1 운동: 내용이 같으면 시각 글자 모양이 달라도(+00:00 vs
   assert.equal(app.get("data.workouts[0].start"), w1.start);
 });
 
+test("B1: 올리는 동안 같은 식사 · 체중을 또 고치면 새 값이 남고 다음 동기화 때 올라감 (인터넷 옛 값이 안 덮음)", async () => {
+  let app, hit = false;
+  const fake = createFakeSupabase({ session: { user: A }, failOn: q => {      // 식사를 올리는 바로 그 순간에 폰에서 또 고침
+    if (hit || q.table !== "meals" || q.op !== "upsert") return;
+    hit = true;
+    app.run(`Object.assign(data.meals[0], { kcal: 999, synced: false }); data.body["2026-10-30"] = { w: 81.5, synced: false }; save()`);
+  } });
+  app = loadApp({ data: baseData({ ownerId: A.id, meals: [meal("m1", 700, { synced: false })],
+    body: { "2026-10-30": { w: 82, synced: false } } }), fake });
+  await app.settle();
+  assert.deepEqual(app.get(`[data.meals[0].kcal, data.meals[0].synced, data.body["2026-10-30"].w, data.body["2026-10-30"].synced]`),
+    [999, false, 81.5, false]);                                              // 고친 것은 "아직 안 올림"
+  await app.run("syncNow()");
+  await app.settle();
+  assert.deepEqual(app.get(`[data.meals[0].kcal, data.body["2026-10-30"].w]`), [999, 81.5]);   // 예전엔 700 · 82로 돌아갔음
+  assert.deepEqual([fake.state.tables.meals[0].kcal, fake.state.tables.body_weights[0].weight], [999, 81.5]);
+});
+
 // ---------- B4: 1000줄이 넘어도 다 받기 ----------
 
 test("B4: 운동 1200개 · 식사 1500개 — 1000줄씩 나눠 다 받고, 1000번째 뒤 운동을 지우지 않음", async () => {

@@ -901,35 +901,41 @@ async function syncNutrition() {
   // [2] 아직 안 올린 체중 · 식사 · 설정 올리기 (upsert = 있으면 덮어쓰기 → 여러 번 해도 결과가 같음)
   const justUploaded = new Set();                              // 방금 올린 것은 [3]에서 절대 안 지움 (운동 동기화와 같은 보호)
   const days = Object.keys(data.body).filter(d => !data.body[d].synced);
+  const sentBody = days.map(d => data.body[d]);               // 올리는 동안 그 날 체중을 또 고치면 새 값은 "안 올림"으로 남김 (아래 meals와 같은 이유)
   if (days.length) {
     const { error } = await db.from("body_weights")
       .upsert(days.map(d => ({ day: d, weight: data.body[d].w, skeletal_muscle_kg: data.body[d].smm ?? null,
       body_fat_pct: data.body[d].pbf ?? null, updated_at: new Date().toISOString() })));
     if (error) throw error;
-    days.forEach(d => { data.body[d].synced = true; justUploaded.add(d); });
+    days.forEach((d, i) => { if (data.body[d] === sentBody[i]) { sentBody[i].synced = true; justUploaded.add(d); } });
     save();
   }
   const meals = data.meals.filter(m => !m.synced);
+  const sentMeals = meals.map(m => JSON.stringify(m));        // 올린 순간의 모양 (v0.6-d)
+  //   올리는 동안(인터넷이 느리면 몇 초) 같은 식사를 또 고치면, 예전엔 그 고친 것까지 "올라감"으로 표시돼서
+  //   다음 동기화 때 인터넷의 옛 값이 덮어썼음 → 올린 모양과 지금 모양이 같을 때만 "올라감"으로
   if (meals.length) {
     const { error } = await db.from("meals").upsert(meals.map(m => ({
       id: m.id, day: m.day, slot: m.slot, food: m.food, kcal: m.kcal, carb: m.c, protein: m.p, fat: m.f, grams: m.g ?? null,
     })));
     if (error) throw error;
-    meals.forEach(m => { m.synced = true; justUploaded.add(m.id); });
+    meals.forEach((m, i) => { if (JSON.stringify(m) === sentMeals[i]) { m.synced = true; justUploaded.add(m.id); } });
     save();
   }
   if (data.myFoodsDirty) {                                     // 직접 등록한 음식 (이름마다 한 줄, 덮어쓰기)
+    const sentFoods = JSON.stringify(data.myFoods);
     const rows = Object.entries(data.myFoods).map(([name, f]) => ({ name, basis: f.basis, unit: f.unit, total: f.total,
       kcal: f.kcal, carb: f.c, protein: f.p, fat: f.f, updated_at: new Date().toISOString() }));
     if (rows.length) {
       const { error } = await db.from("my_foods").upsert(rows);
       if (error) throw error;
     }
-    data.myFoodsDirty = false;
+    if (JSON.stringify(data.myFoods) === sentFoods) data.myFoodsDirty = false;   // 올리는 동안 또 바뀌었으면 다음에 다시
     save();
   }
   const s = data.nutrition;
   if (s && s.dirty) {
+    const sentSettings = JSON.stringify(s);
     const { error } = await db.from("nutrition_settings").upsert({
       carb_pct: s.ratio[0], protein_pct: s.ratio[1], fat_pct: s.ratio[2],
       target_kg_per_week: s.kgPerWeek, day_ratios: s.dayRatios, updated_at: new Date().toISOString(),
@@ -938,7 +944,7 @@ async function syncNutrition() {
       manual_maintenance: s.manualMaintenance, day_status: s.dayStatus,
     });
     if (error) throw error;
-    s.dirty = false;
+    if (JSON.stringify(data.nutrition) === sentSettings) s.dirty = false;            // 올리는 동안 또 바뀌었으면 다음에 다시
     save();
   }
 
