@@ -16,8 +16,8 @@
 3. 줄 번호를 찾아서 고치기 (편집기 안에서 `Ctrl+F`로 글자 찾기도 돼)
 4. 오른쪽 위 **Commit changes…** → 메시지는 한국어로 "무엇을 왜" (예: `B2: 백업 복원할 때 내 음식도 같이 복원`) → **Commit directly to the `v0.6-d` branch** → Commit
 5. **앱 파일(`app/…`)을 고쳤으면 버전 두 줄도 같이** (CLAUDE.md 규칙 — 안 올리면 폰이 옛 파일을 계속 씀):
-   - `app/app.js` 22줄: `const APP_VERSION = "v0.6-d.1";` → `"v0.6-d.2"`
-   - `app/sw.js` 4줄: `const CACHE = "iwbm-v0.6d-1";` → `"iwbm-v0.6d-2"`
+   - `app/app.js` 22줄: `const APP_VERSION = "v0.6-d.2";` → `"v0.6-d.3"`
+   - `app/sw.js` 4줄: `const CACHE = "iwbm-v0.6d-2";` → `"iwbm-v0.6d-3"`
    - 1번 · 2번을 둘 다 고칠 거면 버전은 마지막에 한 번만 올리면 돼
 6. 다 하면 Claude한테 "고쳤어, pull해서 확인해 줘"라고 말하기
 

@@ -111,7 +111,8 @@ async function main() {
   const { ctx, page } = await newPage({ session: { user: A }, remote }, seedData({ ownerId: A.id, ownerEmail: A.email, meals: [meal], workouts: old }));
   await shot(page, "home");
   const home = await page.textContent("#app");
-  assert.match(home, /v0\.6-d\.1/, "홈 맨 아래 버전");
+  const version = /APP_VERSION = "([^"]+)"/.exec(fs.readFileSync(path.join(APP, "app.js"), "utf8"))[1];   // 버전을 올려도 시험은 안 고쳐도 되게
+  assert.ok(home.includes(version), `홈 맨 아래 버전 ${version}`);
   assert.match(home, /동기화 완료/, "동기화 완료 표시");
   assert.equal(await page.evaluate(() => data.meals.find(m => m.id === "m1").kcal), 600, "B1: 다른 기기에서 고친 식사");
 
